@@ -29,41 +29,75 @@ namespace UWRL.CIWaterNetServer.Controllers
 
             logger.Info("Creating watershed buffered shape and raster files...");
 
-            string inputWSShapeFileName = "watershed.shp";
-            string outputBufferedWSShapeFileName = "ws_buffered.shp";
-            string outputBufferedWSRasterFileName = "ws_buffered.tif";
+            string inputWSShapeFileName = UEB.UEBSettings.WATERSHED_SHAPE_FILE_NAME; // "watershed.shp";
+            string outputBufferedWSShapeFileName = UEB.UEBSettings.WATERSHED_BUFERRED_SHAPE_FILE_NAME; // "ws_buffered.shp";
+            string outputBufferedWSRasterFileName = UEB.UEBSettings.WATERSHED_BUFERRED_RASTER_FILE_NAME; // "ws_buffered.tif";
 
-            if (EnvironmentSettings.IsLocalHost)
+            
+            //if (EnvironmentSettings.IsLocalHost)
+            //{
+            //    _targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\CreateBufferedWatershedFiles.py";
+            //    _inputShapeFilePath = @"E:\CIWaterData\Temp";
+            //    _outputWatershedFilePath = @"E:\CIWaterData\Temp";
+            //    _inputReferenceDEMFile = @"E:\CIWaterData\DEM\gsl100.tif";
+            //}
+            //else
+            //{
+            //    _targetPythonScriptFile = @"C:\CIWaterPythonScripts\CreateBufferedWatershedFiles.py";
+            //    _inputShapeFilePath = @"C:\CIWaterData\Temp";
+            //    _outputWatershedFilePath = @"C:\CIWaterData\Temp";
+            //    _inputReferenceDEMFile = @"C:\CIWaterData\DEM\gsl100.tif";
+            //}
+
+            // begin of new code
+            _targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "CreateBufferedWatershedFiles.py");
+            _inputShapeFilePath = UEB.UEBSettings.WORKING_DIR_PATH;
+            _outputWatershedFilePath = UEB.UEBSettings.WORKING_DIR_PATH;
+            _inputReferenceDEMFile = Path.Combine(UEB.UEBSettings.DEM_RESOURCE_DIR_PATH, UEB.UEBSettings.DEM_RESOURCE_FILE_NAME);
+
+            // check if the python script file exists
+            if (!File.Exists(_targetPythonScriptFile))
             {
-                _targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\CreateBufferedWatershedFiles.py";
-                _inputShapeFilePath = @"E:\CIWaterData\Temp";
-                _outputWatershedFilePath = @"E:\CIWaterData\Temp";
-                _inputReferenceDEMFile = @"E:\CIWaterData\DEM\gsl100.tif";
+                string errMsg = string.Format("Python script file ({0}) to bufrred watershed shape and raster " + 
+                                                "files was not found.", _targetPythonScriptFile);
+                logger.Error(errMsg);
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.Content = new StringContent(errMsg);
+                return response;
             }
-            else
-            {
-                _targetPythonScriptFile = @"C:\CIWaterPythonScripts\CreateBufferedWatershedFiles.py";
-                _inputShapeFilePath = @"C:\CIWaterData\Temp";
-                _outputWatershedFilePath = @"C:\CIWaterData\Temp";
-                _inputReferenceDEMFile = @"C:\CIWaterData\DEM\gsl100.tif";
-            }
+            
+            // end of new code
 
             //check if shape file exists
             _inputWatershedShapeFile = Path.Combine(_inputShapeFilePath, inputWSShapeFileName);
             if (!File.Exists(_inputWatershedShapeFile))
             {
-                string errMsg = "Internal error: Specified shape file " + _inputWatershedShapeFile + " was not found.";
+                string errMsg = string.Format("Specified shape file ({0}) was not found.", _inputWatershedShapeFile);
                 logger.Error(errMsg);
-                return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.Content = new StringContent(errMsg);
+                return response;
+                //return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);
             }
 
             // check if the reference DEM file exists
             if (!File.Exists(_inputReferenceDEMFile))
             {
-                string errMsg = "Internal error: Specified reference DEM file " + _inputReferenceDEMFile + " was not found.";
+                string errMsg = string.Format("Specified reference DEM file ({0}) was not found.",  _inputReferenceDEMFile);
                 logger.Error(errMsg);
-                return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.Content = new StringContent(errMsg);
+                return response;
+                //return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);
             }
+
+            // begin new code
+            // if the output dir path does not exist, then create  this path
+            if (!Directory.Exists(_outputWatershedFilePath))
+            {
+                Directory.CreateDirectory(_outputWatershedFilePath);
+            }
+            // end new code
 
             _outputBufferedWSShapeFile = Path.Combine(_outputWatershedFilePath, outputBufferedWSShapeFileName);
             _outputBufferedWSRasterFile = Path.Combine(_outputWatershedFilePath, outputBufferedWSRasterFileName);
@@ -74,7 +108,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                 File.Delete(_outputBufferedWSShapeFile);
             }
 
-            // if the output watershed rsater file alreday existx, then delet it
+            // if the output watershed raster file alreday existx, then delete it
             if (File.Exists(_outputBufferedWSRasterFile))
             {
                 File.Delete(_outputBufferedWSRasterFile);
@@ -83,7 +117,7 @@ namespace UWRL.CIWaterNetServer.Controllers
             try
             {
                 List<string> arguments = new List<string>();
-                arguments.Add(@"C:\Python27\ArcGIS10.1\Python.exe");
+                arguments.Add(EnvironmentSettings.PythonExecutableFile);
                 arguments.Add(_targetPythonScriptFile);
                 arguments.Add(_inputReferenceDEMFile);
                 arguments.Add(_inputWatershedShapeFile);
@@ -91,12 +125,11 @@ namespace UWRL.CIWaterNetServer.Controllers
                 arguments.Add(_outputBufferedWSRasterFile);
 
                 // create a string containing all the argument items separated by a space
-                string commandString = string.Join(" ", arguments); //>> new code
-                object command = commandString; //>>>new code
+                string commandString = string.Join(" ", arguments); 
+                object command = commandString; 
 
-                Python.PythonHelper.ExecuteCommand(command); //>>> new code
-                //Python.PythonHelper.ExecuteScript(_targetPythonScriptFile, arguments);
-                string responseMsg = "Buffered watershed shape and raster files were created.";
+                Python.PythonHelper.ExecuteCommand(command);
+                string responseMsg = string.Format("Buffered watershed shape file ({0}) and raster file ({0}) were created.", _outputBufferedWSShapeFile, _outputBufferedWSRasterFile);
                 response.Content = new StringContent(responseMsg);
                 response.StatusCode = HttpStatusCode.OK;
                 response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/text");

@@ -23,34 +23,41 @@ namespace UWRL.CIWaterNetServer.Controllers
             HttpResponseMessage response = new HttpResponseMessage();
             logger.Info("Calculating atmospheric pressure for the watershed...");
 
-            string wsDEMFileName = "ws_dem.tif";
-            //string resampledWSDEMFileName = "ResampledWSDEM.tif";
-            string outputWSAtmPresFileName = "ws_atom_pres.txt";
+            string wsDEMFileName = UEB.UEBSettings.WATERSHED_DEM_RASTER_FILE_NAME; // "ws_dem.tif";            
+            string outputWSAtmPresFileName = UEB.UEBSettings.WATERSHED_ATMOSPHERIC_PRESSURE_FILE_NAME; // "ws_atom_pres.txt";
 
-            if (EnvironmentSettings.IsLocalHost)
-            {
-                _targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\CalculateWatershedAtmosphericPressure.py";
-                _inputWatershedFilePath = @"E:\CIWaterData\Temp";
-            }
-            else
-            {
-                _targetPythonScriptFile = @"C:\CIWaterPythonScripts\CalculateWatershedAtmosphericPressure.py";
-                _inputWatershedFilePath = @"C:\CIWaterData\Temp";
-            }
-                        
+            //if (EnvironmentSettings.IsLocalHost)
+            //{
+            //    _targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\CalculateWatershedAtmosphericPressure.py";
+            //    _inputWatershedFilePath = @"E:\CIWaterData\Temp";
+            //}
+            //else
+            //{
+            //    _targetPythonScriptFile = @"C:\CIWaterPythonScripts\CalculateWatershedAtmosphericPressure.py";
+            //    _inputWatershedFilePath = @"C:\CIWaterData\Temp";
+            //}
+             
+            // begin new code
+            _targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "CalculateWatershedAtmosphericPressure.py");
+            _inputWatershedFilePath = UEB.UEBSettings.WORKING_DIR_PATH;
+            // end of new code
+
             _inputWSDEMFile = Path.Combine(_inputWatershedFilePath, wsDEMFileName);
 
             if (!File.Exists(_inputWSDEMFile))
             {
-                string errMsg = "Internal error: No DEM file for the watershed was found.";
+                string errMsg = string.Format("DEM file ({0}) for the watershed was not found.", _inputWSDEMFile);
                 logger.Error(errMsg);
-                return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);                                
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.Content = new StringContent(errMsg);
+                return response;
+                //return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);                                
             }
 
             try
             {
                 List<string> arguments = new List<string>();
-                arguments.Add(@"C:\Python27\ArcGIS10.1\Python.exe");
+                arguments.Add(EnvironmentSettings.PythonExecutableFile); // @"C:\Python27\ArcGIS10.1\Python.exe");
                 arguments.Add(_targetPythonScriptFile);
                 arguments.Add(_inputWSDEMFile);
                 arguments.Add(outputWSAtmPresFileName);
@@ -60,8 +67,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                 object command = commandString; //>>>new code
 
                 Python.PythonHelper.ExecuteCommand(command); //>>> new code
-                //Python.PythonHelper.ExecuteScript(_targetPythonScriptFile, arguments);
-                string responseMsg = "Atmospheric pressure was calculated for the watershed and written to a text file.";
+                string responseMsg = string.Format("Watershed atmospheric pressure was calculated and written to a text file ({0}).", outputWSAtmPresFileName);
                 response.Content = new StringContent(responseMsg);
                 response.StatusCode = HttpStatusCode.OK;
                 response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/text");

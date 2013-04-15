@@ -23,39 +23,57 @@ namespace UWRL.CIWaterNetServer.Controllers
         {
             HttpResponseMessage response = new HttpResponseMessage();
 
-            logger.Info("Creating watershed lat and lon netcdf files...");  
+            logger.Info("Creating watershed lat and lon netcdf files...");
 
-            string wsDEMFileName = "ws_dem.tif";
+            string wsDEMFileName = UEB.UEBSettings.WATERSHED_DEM_RASTER_FILE_NAME; // "ws_dem.tif";
             
             // these file names be used to generate either text file with (.txt) extension
             // or netcdf file with (.nc) extension
-            string outputWSLatFileNameWithNoExtension = "lat";
-            string outputWSLonFileNameWithNoExtension = "lon";
+            string outputWSLatFileNameWithNoExtension = UEB.UEBSettings.WATERSHED_LATITUDE_FILE_NAME_WITHOUT_EXTENSION; // "lat";
+            string outputWSLonFileNameWithNoExtension = UEB.UEBSettings.WATERSHED_LONGITIDUE_FILE_NAME_WITHOUT_EXTENSION; // "lon";
 
-            if (EnvironmentSettings.IsLocalHost)
+            //if (EnvironmentSettings.IsLocalHost)
+            //{
+            //    _targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\CalculateWatershedLatLonValues.py";
+            //    _inputWatershedShapeFilePath = @"E:\CIWaterData\Temp";                
+            //}
+            //else
+            //{
+            //    _targetPythonScriptFile = @"C:\CIWaterPythonScripts\CalculateWatershedLatLonValues.py";
+            //    _inputWatershedShapeFilePath = @"C:\CIWaterData\Temp";                
+            //}
+                  
+            // begin new code
+            _targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "CalculateWatershedLatLonValues.py");
+            _inputWatershedShapeFilePath = UEB.UEBSettings.WORKING_DIR_PATH;
+
+            // check if the python script file exists
+            if (!File.Exists(_targetPythonScriptFile))
             {
-                _targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\CalculateWatershedLatLonValues.py";
-                _inputWatershedShapeFilePath = @"E:\CIWaterData\Temp";                
+                string errMsg = string.Format("Python script file ({0}) to generate watershed lat/lon netcdf files was not found.", _targetPythonScriptFile);
+                logger.Error(errMsg);
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.Content = new StringContent(errMsg);
+                return response;
             }
-            else
-            {
-                _targetPythonScriptFile = @"C:\CIWaterPythonScripts\CalculateWatershedLatLonValues.py";
-                _inputWatershedShapeFilePath = @"C:\CIWaterData\Temp";                
-            }
-                        
+
+            // end of new code
             _inputWSDEMRasterFile = Path.Combine(_inputWatershedShapeFilePath, wsDEMFileName);
 
             if (!File.Exists(_inputWSDEMRasterFile))
             {
-                string errMsg = string.Format("Internal error: No watershed DEM file ({0}) was found.", _inputWSDEMRasterFile);
+                string errMsg = string.Format("No watershed DEM raster file ({0}) was found.", _inputWSDEMRasterFile);
                 logger.Error(errMsg);
-                return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.Content = new StringContent(errMsg);
+                return response;
+                //return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);
             }
 
             try
             {
                 List<string> arguments = new List<string>();
-                arguments.Add(@"C:\Python27\ArcGIS10.1\Python.exe");
+                arguments.Add(EnvironmentSettings.PythonExecutableFile); //@"C:\Python27\ArcGIS10.1\Python.exe");
                 arguments.Add(_targetPythonScriptFile);
                 arguments.Add(_inputWSDEMRasterFile);
                 arguments.Add(outputWSLatFileNameWithNoExtension);
@@ -63,12 +81,9 @@ namespace UWRL.CIWaterNetServer.Controllers
 
                 // create a string containing all the argument items separated by a space
                 string commandString = string.Join(" ", arguments); //>> new code
-                object command = commandString; //>>>new code
-
-                Python.PythonHelper.ExecuteCommand(command); //>>> new code
-
-                //Python.PythonHelper.ExecuteScript(_targetPythonScriptFile, arguments);
-                string responseMsg = "Watershed lat/lon value files were created.";
+                object command = commandString;
+                Python.PythonHelper.ExecuteCommand(command);                                 
+                string responseMsg = string.Format("Watershed lat/lon value files were created.");
                 response.Content = new StringContent(responseMsg);
                 response.StatusCode = HttpStatusCode.OK;
                 response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/text");

@@ -1,10 +1,17 @@
-working.dir.path=C:\CIWaterData\Temp
-python.script.dir.path=C:\CIWaterPythonScripts
-daymet.resource.temp.dir.path=C:\CIWaterData\DataSources\Daymet\Temp
-daymet.resource.precp.dir.path=C:\CIWaterData\DataSources\Daymet\Precp
-daymet.resource.vp.dir.path=C:\CIWaterData\DataSources\Daymet\vp
-nlcd.resource.dir.path=C:\CIWaterData\DataSources\NLCD
+working.dir.path=E:\CIWaterData\Temp
+# testing comment
+test wrong format missing equal character
+python.script.dir.path=E:\SoftwareProjects\CIWaterPythonScripts
+daymet.resource.temp.dir.path=E:\CIWaterData\DaymetTimeSeriesData\Logan\tempdatasets
+daymet.resource.precp.dir.path=E:\CIWaterData\DaymetTimeSeriesData\Logan\precdatasets
+daymet.resource.vp.dir.path=E:\CIWaterData\DaymetTimeSeriesData\Logan\vpdatasets
+daymet.resource.temp.min.file.name.pattern=tmin*.nc
+daymet.resource.temp.max.file.name.pattern=tmax*.nc
+daymet.resource.precp.file.name.pattern=prcp*.nc
+daymet.resource.vp.file.name.pattern=vp*.nc
+nlcd.resource.dir.path=E:\CIWaterData\DataSources\NLCD
 nlcd.resource.file.name=ProjNLCD2006_LC_N36W096_v1.img
-dem.resource.dir.path=C:\CIWaterData\DataSources\DEM
-dem.resource.file.name=gls100.tif
+dem.resource.dir.path=E:\CIWaterData\DataSources\DEM
+dem.resource.file.name=gsl100.tif
+watershed.constant.wind.speed=2.0
 

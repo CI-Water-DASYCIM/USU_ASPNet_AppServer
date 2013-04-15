@@ -25,22 +25,28 @@ namespace UWRL.CIWaterNetServer.Controllers
         private string _sourceFilePath = string.Empty;
         private string _targetTempPackageFilePath = string.Empty;
         private string _targetPackageDirPath = string.Empty;
-        private const string _packageZipFileName = "UEBPackage.zip";
+        private string _packageZipFileName = UEB.UEBSettings.UEB_PACKAGE_FILE_NAME; // "UEBPackage.zip";
 
         public GenerateUEBPackageController()
         {
-            if (EnvironmentSettings.IsLocalHost)
-            {
-                _sourceFilePath = @"E:\CIWaterData\Temp";
-                _targetTempPackageFilePath = @"E:\CIWaterData\Temp\UEBPackageFiles";
-                _targetPackageDirPath = @"E:\CIWaterData\Temp\UEBPackageZip";
-            }
-            else
-            {
-                _sourceFilePath = @"C:\CIWaterData\Temp";
-                _targetTempPackageFilePath = @"C:\CIWaterData\Temp\UEBPackageFiles";
-                _targetPackageDirPath = @"C:\CIWaterData\Temp\UEBPackageZip";
-            }
+            //if (EnvironmentSettings.IsLocalHost)
+            //{
+            //    _sourceFilePath = @"E:\CIWaterData\Temp";
+            //    _targetTempPackageFilePath = @"E:\CIWaterData\Temp\UEBPackageFiles";
+            //    _targetPackageDirPath = @"E:\CIWaterData\Temp\UEBPackageZip";
+            //}
+            //else
+            //{
+            //    _sourceFilePath = @"C:\CIWaterData\Temp";
+            //    _targetTempPackageFilePath = @"C:\CIWaterData\Temp\UEBPackageFiles";
+            //    _targetPackageDirPath = @"C:\CIWaterData\Temp\UEBPackageZip";
+            //}
+
+            // new code
+            _sourceFilePath = UEB.UEBSettings.WORKING_DIR_PATH;
+            _targetTempPackageFilePath = Path.Combine(UEB.UEBSettings.WORKING_DIR_PATH, "UEBPackageFiles");
+            _targetPackageDirPath = UEB.UEBSettings.UEB_PACKAGE_DIR_PATH;
+            // end of new code
         }
 
         //This one to test if we can create the pacakge zip file
@@ -89,29 +95,72 @@ namespace UWRL.CIWaterNetServer.Controllers
                 Task mainTask = new Task(() =>
                 {
                     stopWatch = new Stopwatch();
-                    //ResponseMessage daymetResponse;
-                    //int timeStep = 6; //TODO: this value needs to be passed as a parameter in GetUEBPackage method 
-                    const float constantWindSpeed = 2.0f;
-                    GenerateBufferedWatershedFiles(cancellationToken);
-                    GenerateWatershedDEMFile(cancellationToken);
-                    GenerateWatershedNetCDFFile(cancellationToken);                    
-                    GetWatershedAtmosphericPressure(cancellationToken);
-                    GetWatershedSlopeNetCDFFile(cancellationToken);
-                    GetWatershedAspectNetCDFFile(cancellationToken);
-                    GetWatershedLatLonValues(cancellationToken);
-                    GetWatershedLandCoverData(cancellationToken);
-                    GetWatershedLandCoverVariablesData(cancellationToken);
+                   
+                    float constantWindSpeed = UEB.UEBSettings.WATERSHED_CONSTANT_WIND_SPEED; // 2.0f;
+                    response = GenerateBufferedWatershedFiles(cancellationToken);
+                    if (response.StatusCode != HttpStatusCode.OK)
+                    {
+                        tokenSource.Cancel();
+                    }
 
-                    string outputTminDataVarName = "tmin";
-                    string inputDaymetTminFileNamePattern = "tmin*.nc";
+                    response = GenerateWatershedDEMFile(cancellationToken);
+                    if (response.StatusCode != HttpStatusCode.OK)
+                    {
+                        tokenSource.Cancel();
+                    }
+
+                    response = GenerateWatershedNetCDFFile(cancellationToken);
+                    if (response.StatusCode != HttpStatusCode.OK)
+                    {
+                        tokenSource.Cancel();
+                    }
+
+                    response = GetWatershedAtmosphericPressure(cancellationToken);
+                    if (response.StatusCode != HttpStatusCode.OK)
+                    {
+                        tokenSource.Cancel();
+                    }
+
+                    response = GetWatershedSlopeNetCDFFile(cancellationToken);
+                    if (response.StatusCode != HttpStatusCode.OK)
+                    {
+                        tokenSource.Cancel();
+                    }
+
+                    response = GetWatershedAspectNetCDFFile(cancellationToken);
+                    if (response.StatusCode != HttpStatusCode.OK)
+                    {
+                        tokenSource.Cancel();
+                    }
+
+                    response = GetWatershedLatLonValues(cancellationToken);
+                    if (response.StatusCode != HttpStatusCode.OK)
+                    {
+                        tokenSource.Cancel();
+                    }
+
+                    response = GetWatershedLandCoverData(cancellationToken);
+                    if (response.StatusCode != HttpStatusCode.OK)
+                    {
+                        tokenSource.Cancel();
+                    }
+
+                    response = GetWatershedLandCoverVariablesData(cancellationToken);
+                    if (response.StatusCode != HttpStatusCode.OK)
+                    {
+                        tokenSource.Cancel();
+                    }
+
+                    string outputTminDataVarName = UEB.UEBSettings.WATERSHED_SINGLE_TEMP_MIN_NETCDF_VARIABLE_NAME; // "tmin";
+                    string inputDaymetTminFileNamePattern = UEB.UEBSettings.DAYMET_RESOURCE_TEMP_MIN_FILE_NAME_PATTERN; // "tmin*.nc";
                     daymetResponse =  DataProcessor.GetWatershedSingleTempDataPointNetCDFFile(cancellationToken, outputTminDataVarName, inputDaymetTminFileNamePattern);
                     if (daymetResponse.StatusCode != ResponseStatus.OK)
                     {
                         tokenSource.Cancel();
                     }
 
-                    string outputTmaxDataVarName = "tmax";
-                    string inputDaymetTmaxFileNamePattern = "tmax*.nc";
+                    string outputTmaxDataVarName = UEB.UEBSettings.WATERSHED_SINGLE_TEMP_MAX_NETCDF_VARIABLE_NAME; ; // "tmax";
+                    string inputDaymetTmaxFileNamePattern = UEB.UEBSettings.DAYMET_RESOURCE_TEMP_MAX_FILE_NAME_PATTERN; ; // "tmax*.nc";
                     daymetResponse = DataProcessor.GetWatershedSingleTempDataPointNetCDFFile(cancellationToken, outputTmaxDataVarName, inputDaymetTmaxFileNamePattern);
                     if (daymetResponse.StatusCode != ResponseStatus.OK)
                     {
@@ -124,7 +173,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                         tokenSource.Cancel();
                     }
 
-                    string inputDaymetVpFileNamePattern = "vp*.nc";
+                    string inputDaymetVpFileNamePattern = UEB.UEBSettings.DAYMET_RESOURCE_VP_FILE_NAME_PATTERN; // "vp*.nc";
                     daymetResponse = DataProcessor.GetWatershedSingleVaporPresDataPointNetCDFFile(cancellationToken, inputDaymetVpFileNamePattern);
                     if (daymetResponse.StatusCode != ResponseStatus.OK)
                     {
@@ -137,7 +186,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                         tokenSource.Cancel();
                     }
 
-                    string inputDaymetPrcpFileNamePattern = "prcp*.nc";
+                    string inputDaymetPrcpFileNamePattern = UEB.UEBSettings.DAYMET_RESOURCE_PRECP_FILE_NAME_PATTERN; // "prcp*.nc";
                     daymetResponse = DataProcessor.GetWatershedSinglePrecpDataPointNetCDFFile(cancellationToken, inputDaymetPrcpFileNamePattern);
                     if (daymetResponse.StatusCode != ResponseStatus.OK)
                     {
@@ -182,7 +231,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                         ts.Hours, ts.Minutes, ts.Seconds,
                         ts.Milliseconds / 10);
 
-                    if (mainTask.IsCanceled || mainTask.IsFaulted)
+                    if (mainTask.IsCanceled || mainTask.IsFaulted || tokenSource.IsCancellationRequested)
                     {
                         CleanUpOnFailure();
                         string errMsg = "UEB pacakage could not be created.";
@@ -817,15 +866,21 @@ namespace UWRL.CIWaterNetServer.Controllers
             {
                 if (Directory.Exists(_sourceFilePath) == false)
                 {
-                    string errMsg = "Internal error: Source file path doesn't exist.";
+                    string errMsg = string.Format("UEB package source file path ({0}) doesn't exist.", _sourceFilePath);
                     logger.Error(errMsg);
-                    return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);                    
+                    response.StatusCode = HttpStatusCode.NotFound;
+                    response.Content = new StringContent(errMsg);
+                    return response;
+                    //return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);                    
                 }
                 else if (Directory.GetFiles(_sourceFilePath).Length == 0)
                 {
-                    string errMsg = "Internal error: No source files can be found to create an UEB package.";
+                    string errMsg = string.Format("There are no files to be zipped in the specified directory ({0}).", _sourceFilePath);
                     logger.Error(errMsg);
-                    return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);
+                    response.StatusCode = HttpStatusCode.NotFound;
+                    response.Content = new StringContent(errMsg);
+                    return response;
+                    //return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);
                 }
 
                 _targetPackageDirPath += @"\" + packageID;
@@ -858,9 +913,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                 string destFile = string.Empty;
 
                 foreach (string file in files)
-                {
-                    // TODO: Don't copy the .txt files as the data in these text files is extracted
-                    // and put into control files (.dat files). Remove the condition: Path.GetExtension(file) == ".txt" from the if statement
+                {                    
                     if (Path.GetExtension(file) == ".nc" || Path.GetExtension(file) == ".dat")
                     {
                         // Use static Path methods to extract only the file name from the path.
@@ -889,10 +942,16 @@ namespace UWRL.CIWaterNetServer.Controllers
             catch (Exception ex)
             {
                 logger.Fatal(ex.Message);
-                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message);
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.Content = new StringContent(ex.Message);
+                return response;
+                //return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message);
             }
 
-            logger.Info("UEB package creation was successful.");
+            string msg = "UEB package creation was successful.";
+            logger.Info(msg);
+            response.StatusCode = HttpStatusCode.OK;
+            response.Content = new StringContent(msg);
             return response;
         }
 

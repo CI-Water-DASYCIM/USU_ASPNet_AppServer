@@ -23,24 +23,38 @@ namespace UWRL.CIWaterNetServer.Controllers
         {
             HttpResponseMessage response = new HttpResponseMessage();
             
-            logger.Info("Creating watershed land cover specific data netcdf files...");  
+            logger.Info("Creating watershed land cover specific data netcdf files...");
 
-            string wsNLCDRasterFileName = "ws_nlcd.img";            
-            string outWSCanopyCoverNetCDFFileName = "cc_nlcd_.nc";
-            string outWSHeightOfCanopyNetCDFFileName = "hc_nlcd_.nc";
-            string outWSLAINetCDFFileName = "lai_nlcd_.nc";
-            string outWScanopyYCageNetCDFFileName = "ycage_nlcd_.nc";
+            string wsNLCDRasterFileName = UEB.UEBSettings.WATERSHED_NLCD_RASTER_FILE_NAME; // "ws_nlcd.img";            
+            string outWSCanopyCoverNetCDFFileName = UEB.UEBSettings.WATERSHED_NLCD_CC_NETCDF_FILE_NAME; // "cc_nlcd_.nc";
+            string outWSHeightOfCanopyNetCDFFileName = UEB.UEBSettings.WATERSHED_NLCD_HC_NETCDF_FILE_NAME; // "hc_nlcd_.nc";
+            string outWSLAINetCDFFileName = UEB.UEBSettings.WATERSHED_NLCD_LAI_NETCDF_FILE_NAME; // "lai_nlcd_.nc";
+            string outWScanopyYCageNetCDFFileName = UEB.UEBSettings.WATERSHED_NLCD_YCAGE_NETCDF_FILE_NAME; // "ycage_nlcd_.nc";
 
-            if (EnvironmentSettings.IsLocalHost)
+            //if (EnvironmentSettings.IsLocalHost)
+            //{
+            //    _targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\GenerateLandCoverRelatedSiteVariablesData.py";
+            //    _inputWSNLCDDataSetFilePath = @"E:\CIWaterData\Temp";                
+            //}
+            //else
+            //{
+            //    _targetPythonScriptFile = @"C:\CIWaterPythonScripts\GenerateLandCoverRelatedSiteVariablesData.py";
+            //    _inputWSNLCDDataSetFilePath = @"C:\CIWaterData\Temp";                
+            //}
+
+            // start new code
+            _targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "GenerateLandCoverRelatedSiteVariablesData.py");
+            _inputWSNLCDDataSetFilePath = UEB.UEBSettings.WORKING_DIR_PATH;
+            // check if the python script file exists
+            if (!File.Exists(_targetPythonScriptFile))
             {
-                _targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\GenerateLandCoverRelatedSiteVariablesData.py";
-                _inputWSNLCDDataSetFilePath = @"E:\CIWaterData\Temp";                
+                string errMsg = string.Format("Python script file ({0}) to generate land cover related site variable data files for the watershed was not found.", _targetPythonScriptFile);
+                logger.Error(errMsg);
+                response.StatusCode =  HttpStatusCode.NotFound;
+                response.Content = new StringContent(errMsg);
+                return response;
             }
-            else
-            {
-                _targetPythonScriptFile = @"C:\CIWaterPythonScripts\GenerateLandCoverRelatedSiteVariablesData.py";
-                _inputWSNLCDDataSetFilePath = @"C:\CIWaterData\Temp";                
-            }
+            // end of new code
 
             // if resampled version of the ws DEM file is available, then use that
             _inputWSNLCDFile = Path.Combine(_inputWSNLCDDataSetFilePath, wsNLCDRasterFileName);
@@ -49,13 +63,16 @@ namespace UWRL.CIWaterNetServer.Controllers
             {
                 string errMsg = string.Format("Internal error: NLCD dataset file ({0}) for watershed was not found.", _inputWSNLCDDataSetFilePath);
                 logger.Error(errMsg);
-                return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);                
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.Content = new StringContent(errMsg);
+                return response;
+                //return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);                
             }
 
             try
             {
                 List<string> arguments = new List<string>();
-                arguments.Add(@"C:\Python27\ArcGIS10.1\Python.exe");
+                arguments.Add(EnvironmentSettings.PythonExecutableFile); // @"C:\Python27\ArcGIS10.1\Python.exe");
                 arguments.Add(_targetPythonScriptFile);
                 arguments.Add(_inputWSNLCDFile);
                 arguments.Add(outWSCanopyCoverNetCDFFileName);
@@ -64,11 +81,9 @@ namespace UWRL.CIWaterNetServer.Controllers
                 arguments.Add(outWScanopyYCageNetCDFFileName);
 
                 // create a string containing all the argument items separated by a space
-                string commandString = string.Join(" ", arguments); //>> new code
-                object command = commandString; //>>>new code
-
-                Python.PythonHelper.ExecuteCommand(command); //>>> new code
-                                
+                string commandString = string.Join(" ", arguments); 
+                object command = commandString; 
+                Python.PythonHelper.ExecuteCommand(command);                                 
                 string responseMsg = "Gridded land cover site varaibles datasets for the watershed domain were created.";
                 response.Content = new StringContent(responseMsg);
                 response.StatusCode = HttpStatusCode.OK;
