@@ -20,20 +20,12 @@ namespace UWRL.CIWaterNetServer.Controllers
     public class ShapeLatLonValuesController : ApiController
     {
         private static Logger logger = LogManager.GetCurrentClassLogger();
-        private string _inputWatershedShapeFilePath = string.Empty; 
-
+        
         public HttpResponseMessage GetShapeLatLonValues(string shapeFileName)
         {
             HttpResponseMessage response = new HttpResponseMessage();
-
-            if (EnvironmentSettings.IsLocalHost)
-            {                
-                _inputWatershedShapeFilePath = @"E:\CIWaterData\Temp";                
-            }
-            else
-            {                
-                _inputWatershedShapeFilePath = @"C:\CIWaterData\Temp";                
-            }
+                        
+            string inputWatershedShapeFilePath = UEB.UEBSettings.WORKING_DIR_PATH;
 
             if(string.IsNullOrEmpty(shapeFileName))
             {               
@@ -42,7 +34,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                 return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);
             }
 
-            string shapeFileExt = Path.GetExtension(Path.Combine(_inputWatershedShapeFilePath, shapeFileName));
+            string shapeFileExt = Path.GetExtension(Path.Combine(inputWatershedShapeFilePath, shapeFileName));
             if (shapeFileExt == string.Empty)
             {
                 shapeFileName += ".shp";
@@ -52,8 +44,8 @@ namespace UWRL.CIWaterNetServer.Controllers
                 shapeFileName.Replace(shapeFileExt, ".shp");
             }
             
-            //check file exists
-            if (!File.Exists(Path.Combine(_inputWatershedShapeFilePath, shapeFileName)))
+            // check file exists
+            if (!File.Exists(Path.Combine(inputWatershedShapeFilePath, shapeFileName)))
             {                
                 string errMsg = shapeFileName + " was not found.";
                 logger.Error(errMsg);
@@ -64,7 +56,7 @@ namespace UWRL.CIWaterNetServer.Controllers
 
             try
             {
-                fs = FeatureSet.Open(Path.Combine(_inputWatershedShapeFilePath, shapeFileName)) as FeatureSet;
+                fs = FeatureSet.Open(Path.Combine(inputWatershedShapeFilePath, shapeFileName)) as FeatureSet;
             }
             catch (Exception ex)
             {
@@ -72,7 +64,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                 return Request.CreateErrorResponse(HttpStatusCode.NotFound, ex.Message);
             }            
             
-            //fill the attributes table
+            // fill the attributes table
             fs.FillAttributes();
             string result = string.Empty;           
             List<ShapeDataSet> ShapeDataSetList = new List<ShapeDataSet>();

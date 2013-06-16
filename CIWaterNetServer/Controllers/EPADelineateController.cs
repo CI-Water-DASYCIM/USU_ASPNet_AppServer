@@ -3,8 +3,6 @@ using DotSpatial.Projections;
 using DotSpatial.Topology;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.ComponentModel;
 using System.Data;
 using System.IO;
 using System.IO.Compression;
@@ -21,8 +19,7 @@ namespace UWRL.CIWaterNetServer.Controllers
     public class EPADelineateController : ApiController
     {
         #region Variables
-        private static Logger logger = LogManager.GetCurrentClassLogger();
-        
+        private static Logger logger = LogManager.GetCurrentClassLogger();        
         
         private string _targetShapeFilesDirPath = string.Empty;
         private string _targetTempShapeFilesDirPath = string.Empty; 
@@ -31,17 +28,17 @@ namespace UWRL.CIWaterNetServer.Controllers
         /// <summary>
         /// watershed outlet point file name
         /// </summary>
-        private string _wshedpointFile = "Watershedpoint.shp";
+        private string _wshedpointFile = UEB.UEBSettings.WATERSHED_POINT_SHAPE_FILE_NAME; // "Watershedpoint.shp";
                 
         /// <summary>
         /// watershed boundary (in JSON format) file name
         /// </summary>
-        private string _wshedFile = "Watershed.shp";
+        private string _wshedFile = UEB.UEBSettings.WATERSHED_SHAPE_FILE_NAME; // "Watershed.shp";
                 
         /// <summary>
         /// stream identifier file name
         /// </summary>
-        private string _streamFile = "Stream.shp";
+        private string _streamFile = UEB.UEBSettings.WATERSHED_STREAM_SHAPE_FILE_NAME; // "Stream.shp";
                
         private readonly ProjectionInfo WGS84 = KnownCoordinateSystems.Geographic.World.WGS1984;
         private IList<IFeatureSet> _featureSets = null;
@@ -51,18 +48,43 @@ namespace UWRL.CIWaterNetServer.Controllers
         #region constructor
         public EPADelineateController()
         {
-            if (EnvironmentSettings.IsLocalHost)
+           
+            // >>> TODO: remove the magic strings as done in other classes
+            
+            //if (EnvironmentSettings.IsLocalHost)
+            //{
+            //    _targetShapeFilesDirPath = @"E:\CIWaterData\Temp";
+            //    _targetTempShapeFilesDirPath = @"E:\CIWaterData\Temp\ShapeFiles";
+            //    _targetShapeFileZipDirPath = @"E:\CIWaterData\Temp\zip";
+            //}
+            //else
+            //{
+            //    _targetShapeFilesDirPath = @"C:\CIWaterData\Temp";
+            //    _targetTempShapeFilesDirPath = @"C:\CIWaterData\Temp\ShapeFiles";
+            //    _targetShapeFileZipDirPath = @"C:\CIWaterData\Temp\zip";
+            //}
+
+            // >> new code begin
+            _targetShapeFilesDirPath = UEB.UEBSettings.WORKING_DIR_PATH; // @"C:\CIWaterData\Temp";
+            _targetTempShapeFilesDirPath = Path.Combine(UEB.UEBSettings.WORKING_DIR_PATH, "ShapeFiles"); // @"C:\CIWaterData\Temp\ShapeFiles";
+            _targetShapeFileZipDirPath = Path.Combine(UEB.UEBSettings.WORKING_DIR_PATH, "ShapeFilesZip"); // @"C:\CIWaterData\Temp\zip";
+
+            // create directories if they do not already exist
+            if (!Directory.Exists(_targetShapeFilesDirPath))
             {
-                _targetShapeFilesDirPath = @"E:\CIWaterData\Temp";
-                _targetTempShapeFilesDirPath = @"E:\CIWaterData\Temp\ShapeFiles";
-                _targetShapeFileZipDirPath = @"E:\CIWaterData\Temp\zip";
+                Directory.CreateDirectory(_targetShapeFilesDirPath);
             }
-            else
+
+            if (!Directory.Exists(_targetTempShapeFilesDirPath))
             {
-                _targetShapeFilesDirPath = @"C:\CIWaterData\Temp";
-                _targetTempShapeFilesDirPath = @"C:\CIWaterData\Temp\ShapeFiles";
-                _targetShapeFileZipDirPath = @"C:\CIWaterData\Temp\zip";
+                Directory.CreateDirectory(_targetTempShapeFilesDirPath);
             }
+
+            if (!Directory.Exists(_targetShapeFileZipDirPath))
+            {
+                Directory.CreateDirectory(_targetShapeFileZipDirPath);
+            }
+            // >> new code end
         }
 
         #endregion
@@ -73,7 +95,7 @@ namespace UWRL.CIWaterNetServer.Controllers
         /// To test if the web service is up/running or not
         /// </summary>
         /// <returns></returns>
-        public string GetEPADelineate()
+        private string GetEPADelineate()
         {
             return "Testing WEB API";
         }
@@ -137,6 +159,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                             // Use static Path methods to extract only the file name from the path.
                             fileName = Path.GetFileName(msFile);
                             destFile = Path.Combine(_targetTempShapeFilesDirPath, fileName);
+
                             // Copy the files and overwrite destination files if they already exist.
                             File.Copy(file, destFile, true);
                         }
@@ -144,7 +167,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                     
                 }
 
-                //create a zip file of all shapes files
+                // create a zip file of all shapes files
                 string zipFilePath = Path.Combine(_targetShapeFileZipDirPath, "shapefiles.zip");
 
                 if (File.Exists(zipFilePath))
@@ -154,7 +177,7 @@ namespace UWRL.CIWaterNetServer.Controllers
 
                 ZipFile.CreateFromDirectory(_targetTempShapeFilesDirPath, zipFilePath);
                 
-                //load the zip file to memory
+                // load the zip file to memory
                 MemoryStream ms = new MemoryStream();
 
                 using (FileStream file = new FileStream(zipFilePath, FileMode.Open, FileAccess.Read))
@@ -175,12 +198,12 @@ namespace UWRL.CIWaterNetServer.Controllers
                     //cacheControlHeaderValue.NoCache = true;
                     //response.Headers.CacheControl = cacheControlHeaderValue;
 
-                    //Ref: http://weblogs.asp.net/cibrax/archive/2011/04/25/implementing-caching-in-your-wcf-web-apis.aspx
-                    //set the browser to cache this response for 10 secs only
+                    // Ref: http://weblogs.asp.net/cibrax/archive/2011/04/25/implementing-caching-in-your-wcf-web-apis.aspx
+                    // set the browser to cache this response for 10 secs only
                     response.Content.Headers.Expires = DateTime.Now.AddSeconds(10);
                     response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue("attachment")
                     {
-                        FileName = "shapefiles.zip"
+                        FileName = UEB.UEBSettings.WATERSHED_SHAPE_ZIP_FILE_NAME // "shapefiles.zip"
                     };
 
                     logger.Info("All shape files were zipped.");
@@ -213,7 +236,8 @@ namespace UWRL.CIWaterNetServer.Controllers
                 logger.Error(msg);
                 throw new Exception(msg);
             }
-            //save featuresets as shape files
+
+            // save featuresets as shape files
             SaveShapeFiles(_featureSets);
             logger.Info("All shape files created and saved.");
         }
@@ -227,21 +251,20 @@ namespace UWRL.CIWaterNetServer.Controllers
         {
             var projCor = watershedOutletLocation;
             
-            //Declare a new EPAWebServiceHelper Client
+            // declare a new EPAWebServiceHelper Client
             var trigger = new EPAWebServiceHelper(projCor);
 
-            //Get Start Point Information
+            // get Start Point Information
             object[] startpt = trigger.GetStartPoint();
 
-            //check if start point successful
+            // check if start point successful
             if (startpt == null)
             {
                 //progress.closeForm();
                 return null;
             }
             
-            //Get delineated watershed
-
+            // get delineated watershed
             object[] WshedObj = trigger.GetWsheds(startpt);
 
             if (WshedObj == null)
@@ -252,20 +275,20 @@ namespace UWRL.CIWaterNetServer.Controllers
 
             IFeatureSet fsWshed = new FeatureSet();
 
-            //Delete small marginal polygons if any
+            // delete small marginal polygons if any
             try
             {
                 var fsCatchment = (IFeatureSet)WshedObj[0];
                 int count = fsCatchment.Features.Count;
                 if (count > 1)
                 {
-                    //The last one is the main watershed
+                    // the last one is the main watershed
                     for (int i = 0; i < count - 1; i++)
                     {
                         fsCatchment.Features.RemoveAt(0);
                     }
 
-                    //Object process could be dangerous to lose Projection info
+                    // Object process could be dangerous to lose Projection info
                     WshedObj[0] = fsCatchment;
                 }
 
@@ -279,15 +302,15 @@ namespace UWRL.CIWaterNetServer.Controllers
                 System.Diagnostics.Trace.WriteLine(ex.Message);
             }
 
-            //Get Upstream flowlines
+            // get Upstream flowlines
             var StreamObj = trigger.GetLines(startpt);
             var fsStream = SetAttribute(StreamObj);
 
-            //Create the start point shapefile
+            // create the start point shapefile
             var point = new Feature(projCor);
             IFeatureSet fsPoint = new FeatureSet(point.FeatureType);  
             
-            //PK: added this following one line
+            // PK: added this following one line
             fsPoint.Projection = WGS84;
 
             fsPoint.AddFeature(point);
@@ -432,7 +455,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                 {
                     try
                     {
-                        //Save featureset as a MapLineLayer
+                        // save featureset as a MapLineLayer
                         fileSavePath = Path.Combine(_targetShapeFilesDirPath, _streamFile);
                         fsset.SaveAs(fileSavePath, true);
                         

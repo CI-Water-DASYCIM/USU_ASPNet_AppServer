@@ -163,23 +163,22 @@
     <Compile Include="App_Start\RouteConfig.cs" />
     <Compile Include="App_Start\WebApiConfig.cs" />
     <Compile Include="Controllers\CheckTaskStatusController.cs" />
+    <Compile Include="Controllers\CheckUEBPackageBuildStatusController.cs" />
     <Compile Include="Controllers\ComputeWatershedAtmosphericPressureController.cs" />
     <Compile Include="Controllers\CreateWatershedDEMFileController.cs" />
     <Compile Include="Controllers\EPADelineateController.cs" />
     <Compile Include="Controllers\GenerateBufferedWatershedFilesController.cs" />
-    <Compile Include="Controllers\GenerateDataForLandCoverSiteVariablesController.cs" />
     <Compile Include="Controllers\GenerateUEBPackageController.cs" />
     <Compile Include="Controllers\GenerateWatershedAspectNetCdfFileController.cs" />
-    <Compile Include="Controllers\GenerateWatershedDaymetPrecpNetCdfFileController.cs" />
-    <Compile Include="Controllers\GenerateWatershedDaymetTempNetCdfFileController.cs" />
-    <Compile Include="Controllers\GenerateWatershedDaymetVaporPresNetCdfFileController.cs" />
     <Compile Include="Controllers\GenerateWatershedLandCoverDataController.cs" />
     <Compile Include="Controllers\GenerateWatershedLandCoverVariablesDataController.cs" />
     <Compile Include="Controllers\GenerateWatershedLatLonValuesController.cs" />
     <Compile Include="Controllers\GenerateWatershedSlopeNetCdfFileController.cs" />
     <Compile Include="Controllers\GetUEBPackageController.cs" />
+    <Compile Include="Controllers\GetUEBPackageCreateRequestJSONFormatController.cs" />
     <Compile Include="Controllers\ShapeLatLonValuesController.cs" />
     <Compile Include="Controllers\GenerateWatershedNetCDFFileController.cs" />
+    <Compile Include="Controllers\TestCallFromDrupalController.cs" />
     <Compile Include="Controllers\TestUEBConfigSettingsController.cs" />
     <Compile Include="Daymet\DataProcessor.cs" />
     <Compile Include="Helpers\EnvironmentSettings.cs" />
@@ -268,7 +267,7 @@
     <Content Include="NLog.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="CustomConfig\ueb.cfig" />
+    <None Include="CustomConfig\ueb.cfig" />
     <None Include="NLog.xsd">
       <SubType>Designer</SubType>
     </None>

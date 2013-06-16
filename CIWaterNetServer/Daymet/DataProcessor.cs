@@ -16,17 +16,17 @@ namespace UWRL.CIWaterNetServer.Daymet
     {
         private static Logger logger = LogManager.GetCurrentClassLogger();
 
-        public static ResponseMessage GetWatershedSingleTempDataPointNetCDFFile(CancellationToken ct, string outNetCDFDataVariableName, string sourceNetCDFFileNamePatternToMatch)
+        public static ResponseMessage GetWatershedSingleTempDataPointNetCDFFile(CancellationToken ct, string outNetCDFDataVariableName, string sourceNetCDFFileNamePatternToMatch, string workingRootDirPath, DateTime simulationStartDate, DateTime simulationEndDate)
         {
             ResponseMessage response = new ResponseMessage();
 
-            string wsDEMFileName = UEB.UEBSettings.WATERSHED_DEM_RASTER_FILE_NAME; // "ws_dem.tif";                  
+            string wsDEMFileName = UEB.UEBSettings.WATERSHED_DEM_RASTER_FILE_NAME;                  
             string watershedFilePath = string.Empty;
             string inputWSDEMRasterFile = string.Empty;
             string targetPythonScriptFile = string.Empty;
             string inputTempDaymetDataFilePath = string.Empty;
             string outNetCDFTempDataFilePath = string.Empty;
-            string outNetCDFTempDataFileName = string.Empty; // outNetCDFDataVariableName + "_daily_one_data.nc";
+            string outNetCDFTempDataFileName = string.Empty; 
             string outTempDataRasterFilePath = string.Empty;
 
             if (ct.IsCancellationRequested)
@@ -62,6 +62,16 @@ namespace UWRL.CIWaterNetServer.Daymet
                 return response;
             }
 
+            // validate simluation start and end dates
+            if (simulationStartDate >= simulationEndDate)
+            {
+                string errMsg = "Simulation end date must be a date after simulation start date.";
+                logger.Error(errMsg);
+                response.StatusCode = ResponseStatus.BadRequest;
+                response.Content = new StringContent(errMsg);
+                return response;
+            }
+
             if (outNetCDFDataVariableName == UEB.UEBSettings.WATERSHED_SINGLE_TEMP_MAX_NETCDF_VARIABLE_NAME)
             {
                 outNetCDFTempDataFileName = UEB.UEBSettings.WATERSHED_SINGLE_TEMP_MAX_NETCDF_FILE_NAME;
@@ -70,32 +80,13 @@ namespace UWRL.CIWaterNetServer.Daymet
             {
                 outNetCDFTempDataFileName = UEB.UEBSettings.WATERSHED_SINGLE_TEMP_MIN_NETCDF_FILE_NAME;
             }
-
-            //if (EnvironmentSettings.IsLocalHost)
-            //{
-            //    targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\CalculateWatershedDaymetTempGDAL.py";
-            //    inputTempDaymetDataFilePath = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\tempdatasets";
-            //    outNetCDFTempDataFilePath = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\tempdatasets\OutNetCDF";
-            //    outTempDataRasterFilePath = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\tempdatasets\Raster";
-            //    watershedFilePath = @"E:\CIWaterData\Temp";
-            //}
-            //else
-            //{
-            //    targetPythonScriptFile = @"C:\CIWaterPythonScripts\CalculateWatershedDaymetTempGDAL.py";
-            //    inputTempDaymetDataFilePath = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\tempdatasets";
-            //    outNetCDFTempDataFilePath = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\tempdatasets\OutNetCDF";
-            //    outTempDataRasterFilePath = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\tempdatasets\Raster";
-            //    watershedFilePath = @"C:\CIWaterData\Temp";
-            //}
-
-            // >> begin new code
+            
             targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "CalculateWatershedDaymetTempGDAL.py");
             inputTempDaymetDataFilePath = UEB.UEBSettings.DAYMET_RESOURCE_TEMP_DIR_PATH;
-            outNetCDFTempDataFilePath = UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_TEMP_DIR_PATH;
-            outTempDataRasterFilePath = UEB.UEBSettings.DAYMET_RASTER_OUTPUT_TEMP_DIR_PATH;
-            watershedFilePath = UEB.UEBSettings.WORKING_DIR_PATH;
-            // >> end new code
-            
+            outNetCDFTempDataFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_TEMP_SUB_DIR_PATH);
+            outTempDataRasterFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_RASTER_OUTPUT_TEMP_SUB_DIR_PATH);
+            watershedFilePath = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
+                        
             inputWSDEMRasterFile = Path.Combine(watershedFilePath, wsDEMFileName);
 
             if (!File.Exists(inputWSDEMRasterFile))
@@ -105,11 +96,8 @@ namespace UWRL.CIWaterNetServer.Daymet
                 response.StatusCode = ResponseStatus.NotFound;
                 response.Content = new StringContent(errMsg);
                 return response;
-
             }
-
-            // >> begin new code
-
+            
             // check if the python script file exists
             if (!File.Exists(targetPythonScriptFile))
             {
@@ -130,9 +118,8 @@ namespace UWRL.CIWaterNetServer.Daymet
             {
                 Directory.CreateDirectory(outTempDataRasterFilePath);
             }
-            // >> end new code
-
-            //get names of all the input temp netcdf files from the inputTempDaymetDataFilePath
+            
+            // get names of all the input temp netcdf files from the inputTempDaymetDataFilePath
             DirectoryInfo di = new DirectoryInfo(inputTempDaymetDataFilePath);
             var tempNetcdfFiles = di.GetFiles(sourceNetCDFFileNamePatternToMatch); // e.g "tmin*.nc"
 
@@ -159,7 +146,7 @@ namespace UWRL.CIWaterNetServer.Daymet
 
             try
             {
-                //create the list of arguments for the python script
+                // create the list of arguments for the python script
                 List<string> arguments = new List<string>();
                 arguments.Add(EnvironmentSettings.PythonExecutableFile); 
                 arguments.Add(targetPythonScriptFile); // new code
@@ -170,12 +157,14 @@ namespace UWRL.CIWaterNetServer.Daymet
                 arguments.Add(inputWSDEMRasterFile);
                 arguments.Add(tempNetCDFFileListString);
                 arguments.Add(outNetCDFDataVariableName);
+                arguments.Add(simulationStartDate.ToString("yyyy/MM/dd"));
+                arguments.Add(simulationEndDate.ToString("yyyy/MM/dd"));
 
                 // create a string containing all the argument items separated by a space
                 string commandString = string.Join(" ", arguments); 
                 object command = commandString; 
 
-                //execute script
+                // execute python script
                 Python.PythonHelper.ExecuteCommand(command);
                 string responseMsg = string.Format("Watershed Daymet temperature ({0}) NetCDF file was created.", outNetCDFTempDataFileName);
                 response.Content = new StringContent(responseMsg);
@@ -193,7 +182,7 @@ namespace UWRL.CIWaterNetServer.Daymet
             return response;
         }
 
-        public static ResponseMessage GetWatershedSinglePrecpDataPointNetCDFFile(CancellationToken ct, string sourceNetCDFFileNamePatternToMatch)
+        public static ResponseMessage GetWatershedSinglePrecpDataPointNetCDFFile(CancellationToken ct, string sourceNetCDFFileNamePatternToMatch, string workingRootDirPath, DateTime simulationStartDate, DateTime simulationEndDate)
         {
             ResponseMessage response = new ResponseMessage();
             if (ct.IsCancellationRequested)
@@ -201,40 +190,21 @@ namespace UWRL.CIWaterNetServer.Daymet
                 return GetCancellationResponse();
             }
 
-            string wsDEMFileName = UEB.UEBSettings.WATERSHED_DEM_RASTER_FILE_NAME; // "ws_dem.tif";
+            string wsDEMFileName = UEB.UEBSettings.WATERSHED_DEM_RASTER_FILE_NAME; 
             string watershedFilePath = string.Empty;
             string inputWSDEMRasterFile = string.Empty;
             string targetPythonScriptFile = string.Empty;
             string inputPrecpDaymetDataFilePath = string.Empty;
             string outNetCDFPrecpDataFilePath = string.Empty;
-            string outNetCDFPrecpDataFileName = UEB.UEBSettings.WATERSHED_SINGLE_PRECP_NETCDF_FILE_NAME; // "precp_daily_one_data.nc";
+            string outNetCDFPrecpDataFileName = UEB.UEBSettings.WATERSHED_SINGLE_PRECP_NETCDF_FILE_NAME; 
             string outPrecpDataRasterFilePath = string.Empty;
-
-            //if (EnvironmentSettings.IsLocalHost)
-            //{
-            //    targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\CalculateWatershedDaymetPrecpGDAL.py";
-            //    inputPrecpDaymetDataFilePath = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\precdatasets";
-            //    outNetCDFPrecpDataFilePath = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\precdatasets\OutNetCDF";
-            //    outPrecpDataRasterFilePath = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\precdatasets\Raster";
-            //    watershedFilePath = @"E:\CIWaterData\Temp";
-            //}
-            //else
-            //{
-            //    targetPythonScriptFile = @"C:\CIWaterPythonScripts\CalculateWatershedDaymetPrecpGDAL.py";
-            //    inputPrecpDaymetDataFilePath = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\precdatasets";
-            //    outNetCDFPrecpDataFilePath = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\precdatasets\OutNetCDF";
-            //    outPrecpDataRasterFilePath = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\precdatasets\Raster";
-            //    watershedFilePath = @"C:\CIWaterData\Temp";
-            //}
-
-            // >> begin new code
+                        
             targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "CalculateWatershedDaymetPrecpGDAL.py");
             inputPrecpDaymetDataFilePath = UEB.UEBSettings.DAYMET_RESOURCE_PRECP_DIR_PATH;
-            outNetCDFPrecpDataFilePath = UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_PRECP_DIR_PATH;
-            outPrecpDataRasterFilePath = UEB.UEBSettings.DAYMET_RASTER_OUTPUT_PRECP_DIR_PATH;
-            watershedFilePath = UEB.UEBSettings.WORKING_DIR_PATH;
+            outNetCDFPrecpDataFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_PRECP_SUB_DIR_PATH);
+            outPrecpDataRasterFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_RASTER_OUTPUT_PRECP_SUB_DIR_PATH);
+            watershedFilePath = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
 
-            // end of new code
             inputWSDEMRasterFile = Path.Combine(watershedFilePath, wsDEMFileName);
             
             if (!File.Exists(inputWSDEMRasterFile))
@@ -254,9 +224,16 @@ namespace UWRL.CIWaterNetServer.Daymet
                 response.Content = new StringContent(errMsg);
                 return response;
             }
-
-            // >> begin new code
-
+            
+            // validate simluation start and end dates
+            if (simulationStartDate >= simulationEndDate)
+            {
+                string errMsg = "Simulation end date must be a date after simulation start date.";
+                logger.Error(errMsg);
+                response.StatusCode = ResponseStatus.BadRequest;
+                response.Content = new StringContent(errMsg);
+                return response;
+            }
             // check if the python script file exists
             if (!File.Exists(targetPythonScriptFile))
             {
@@ -277,8 +254,7 @@ namespace UWRL.CIWaterNetServer.Daymet
             {
                 Directory.CreateDirectory(outPrecpDataRasterFilePath);
             }
-            // >> end new code
-
+            
             //get names of all the input precp netcdf files from the _inputPrecpDaymetDataFilePath
             DirectoryInfo di = new DirectoryInfo(inputPrecpDaymetDataFilePath);
             var precpNetcdfFiles = di.GetFiles(sourceNetCDFFileNamePatternToMatch); // e. g. "prcp*.nc"
@@ -315,12 +291,14 @@ namespace UWRL.CIWaterNetServer.Daymet
                 arguments.Add(outPrecpDataRasterFilePath);
                 arguments.Add(inputWSDEMRasterFile);
                 arguments.Add(precpNetCDFFileListString);
+                arguments.Add(simulationStartDate.ToString("yyyy/MM/dd"));
+                arguments.Add(simulationEndDate.ToString("yyyy/MM/dd"));
 
                 // create a string containing all the argument items separated by a space
                 string commandString = string.Join(" ", arguments); 
                 object command = commandString; 
 
-                //execute script
+                //execute python script
                 Python.PythonHelper.ExecuteCommand(command);
                 string responseMsg = string.Format("Watershed Daymet precipitation ({0}) NetCDF file was created.", outNetCDFPrecpDataFileName);
                 response.Content = new StringContent(responseMsg);
@@ -338,7 +316,7 @@ namespace UWRL.CIWaterNetServer.Daymet
             return response;
         }
 
-        public static ResponseMessage GetWatershedSingleVaporPresDataPointNetCDFFile(CancellationToken ct, string sourceNetCDFFileNamePatternToMatch)
+        public static ResponseMessage GetWatershedSingleVaporPresDataPointNetCDFFile(CancellationToken ct, string sourceNetCDFFileNamePatternToMatch, string workingRootDirPath, DateTime simulationStartDate, DateTime simulationEndDate)
         {
             ResponseMessage response = new ResponseMessage();
             if (ct.IsCancellationRequested)
@@ -346,40 +324,21 @@ namespace UWRL.CIWaterNetServer.Daymet
                 return GetCancellationResponse();
             }
 
-            string wsDEMFileName = UEB.UEBSettings.WATERSHED_DEM_RASTER_FILE_NAME; // "ws_dem.tif";            
+            string wsDEMFileName = UEB.UEBSettings.WATERSHED_DEM_RASTER_FILE_NAME;             
             string watershedFilePath = string.Empty;
             string inputWSDEMRasterFile = string.Empty;
             string targetPythonScriptFile = string.Empty;
             string inputVpDaymetDataFilePath = string.Empty;
             string outNetCDFVpDataFilePath = string.Empty;
-            string outNetCDFVpDataFileName = UEB.UEBSettings.WATERSHED_SINGLE_VP_NETCDF_FILE_NAME; // "vp_daily_one_data.nc";
+            string outNetCDFVpDataFileName = UEB.UEBSettings.WATERSHED_SINGLE_VP_NETCDF_FILE_NAME; 
             string outVpDataRasterFilePath = string.Empty;
-
-            //if (EnvironmentSettings.IsLocalHost)
-            //{
-            //    targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\CalculateWatershedDaymetVPDGDAL.py";
-            //    inputVpDaymetDataFilePath = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\vpdatasets";
-            //    outNetCDFVpDataFilePath = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\vpdatasets\OutNetCDF";
-            //    outVpDataRasterFilePath = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\vpdatasets\Raster";
-            //    watershedFilePath = @"E:\CIWaterData\Temp";
-            //}
-            //else
-            //{
-            //    targetPythonScriptFile = @"C:\CIWaterPythonScripts\CalculateWatershedDaymetVPDGDAL.py";
-            //    inputVpDaymetDataFilePath = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\vpdatasets";
-            //    outNetCDFVpDataFilePath = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\vpdatasets\OutNetCDF";
-            //    outVpDataRasterFilePath = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\vpdatasets\Raster";
-            //    watershedFilePath = @"C:\CIWaterData\Temp";
-            //}
-
-            // >> beign new code
+                        
             targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "CalculateWatershedDaymetVPDGDAL.py");
             inputVpDaymetDataFilePath = UEB.UEBSettings.DAYMET_RESOURCE_VP_DIR_PATH;
-            outNetCDFVpDataFilePath = UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_VP_DIR_PATH;
-            outVpDataRasterFilePath = UEB.UEBSettings.DAYMET_RASTER_OUTPUT_VP_DIR_PATH;
-            watershedFilePath = UEB.UEBSettings.WORKING_DIR_PATH;
-            // >> end noew code
-
+            outNetCDFVpDataFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_VP_SUB_DIR_PATH);
+            outVpDataRasterFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_RASTER_OUTPUT_VP_SUB_DIR_PATH);
+            watershedFilePath = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
+            
             // if resampled version of the ws DEM file is available, then use that
             inputWSDEMRasterFile = Path.Combine(watershedFilePath, wsDEMFileName);
 
@@ -401,7 +360,16 @@ namespace UWRL.CIWaterNetServer.Daymet
                 return response;
             }
 
-            // >> begin new code
+            // validate simluation start and end dates
+            if (simulationStartDate >= simulationEndDate)
+            {
+                string errMsg = "Simulation end date must be a date after simulation start date.";
+                logger.Error(errMsg);
+                response.StatusCode = ResponseStatus.BadRequest;
+                response.Content = new StringContent(errMsg);
+                return response;
+            }
+
 
             // check if the python script file exists
             if (!File.Exists(targetPythonScriptFile))
@@ -423,9 +391,8 @@ namespace UWRL.CIWaterNetServer.Daymet
             {
                 Directory.CreateDirectory(outVpDataRasterFilePath);
             }
-            // >> end new code
-
-            //get names of all the input vapor pressure netcdf files from the _inputVpDaymetDataFilePath
+            
+            // get names of all the input vapor pressure netcdf files from the _inputVpDaymetDataFilePath
             DirectoryInfo di = new DirectoryInfo(inputVpDaymetDataFilePath);
             var vpNetcdfFiles = di.GetFiles(sourceNetCDFFileNamePatternToMatch); // e. g. "vp*.nc"
 
@@ -460,13 +427,15 @@ namespace UWRL.CIWaterNetServer.Daymet
                 arguments.Add(outVpDataRasterFilePath);
                 arguments.Add(inputWSDEMRasterFile);
                 arguments.Add(vpNetCDFFileListString);
+                arguments.Add(simulationStartDate.ToString("yyyy/MM/dd"));
+                arguments.Add(simulationEndDate.ToString("yyyy/MM/dd"));
 
                 // create a string containing all the argument items separated by a space
-                string commandString = string.Join(" ", arguments); //>> new code
-                object command = commandString; //>>>new code
+                string commandString = string.Join(" ", arguments); 
+                object command = commandString;
 
-                //execute script
-                Python.PythonHelper.ExecuteCommand(command); //>>> new code
+                // execute python script
+                Python.PythonHelper.ExecuteCommand(command);
                 string responseMsg = "Watershed Daymet vapor pressure NetCDF file was created.";
                 response.Content = new StringContent(responseMsg);
                 response.StatusCode = ResponseStatus.OK;
@@ -482,8 +451,8 @@ namespace UWRL.CIWaterNetServer.Daymet
             }
             return response;
         }
-                
-        public static ResponseMessage GetWatershedMultiplePrecpDataPointsNetCDFFile(CancellationToken ct, int timeStep)
+
+        public static ResponseMessage GetWatershedMultiplePrecpDataPointsNetCDFFile(CancellationToken ct, int timeStep, string workingRootDirPath, DateTime simulationStartDate)
         {
             ResponseMessage response = new ResponseMessage();
             if (ct.IsCancellationRequested)
@@ -493,6 +462,7 @@ namespace UWRL.CIWaterNetServer.Daymet
 
             string targetPythonScriptFile = string.Empty;
             string inputSingleDailyPrecpDataFile = string.Empty;
+            string inputSingleDailyPrecpDataFilePath = string.Empty;
             string outNetCDFMultipleDailyPrecpDataFile = string.Empty;
             string outNetCDFMultipleDailyPrecpDataFilePath = string.Empty;
             string destinationPathForNetCDFMultipleDailyPrecpDataFile = string.Empty;
@@ -508,28 +478,13 @@ namespace UWRL.CIWaterNetServer.Daymet
                 logger.Fatal(errMsg);
                 return response;
             }
-
-            //if (EnvironmentSettings.IsLocalHost)
-            //{
-            //    targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\GenerateWatershedDaymetMultiplePrecpDataPointsPerDay.py";
-            //    inputSingleDailyPrecpDataFile = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\precdatasets\OutNetCDF\precp_daily_one_data.nc";
-            //    outNetCDFMultipleDailyPrecpDataFile = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\precdatasets\OutNetCDF\precp_daily_multiple_data.nc";
-            //    destinationPathForNetCDFMultipleDailyPrecpDataFile = @"E:\CIWaterData\Temp";
-            //}
-            //else
-            //{
-            //    targetPythonScriptFile = @"C:\CIWaterPythonScripts\GenerateWatershedDaymetMultiplePrecpDataPointsPerDay.py";
-            //    inputSingleDailyPrecpDataFile = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\precdatasets\OutNetCDF\precp_daily_one_data.nc";
-            //    outNetCDFMultipleDailyPrecpDataFile = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\precdatasets\OutNetCDF\precp_daily_multiple_data.nc";
-            //    destinationPathForNetCDFMultipleDailyPrecpDataFile = @"C:\CIWaterData\Temp";
-            //}
-
-            // >> begin new code
+                        
             targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "GenerateWatershedDaymetMultiplePrecpDataPointsPerDay.py");
-            inputSingleDailyPrecpDataFile = Path.Combine(UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_PRECP_DIR_PATH, UEB.UEBSettings.WATERSHED_SINGLE_PRECP_NETCDF_FILE_NAME);
-            outNetCDFMultipleDailyPrecpDataFilePath = UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_PRECP_DIR_PATH;
+            inputSingleDailyPrecpDataFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_PRECP_SUB_DIR_PATH);
+            inputSingleDailyPrecpDataFile = Path.Combine(inputSingleDailyPrecpDataFilePath, UEB.UEBSettings.WATERSHED_SINGLE_PRECP_NETCDF_FILE_NAME);
+            outNetCDFMultipleDailyPrecpDataFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_PRECP_SUB_DIR_PATH);
             outNetCDFMultipleDailyPrecpDataFile = Path.Combine(outNetCDFMultipleDailyPrecpDataFilePath, UEB.UEBSettings.WATERSHED_MULTIPLE_PRECP_NETCDF_FILE_NAME);
-            destinationPathForNetCDFMultipleDailyPrecpDataFile = UEB.UEBSettings.WORKING_DIR_PATH;
+            destinationPathForNetCDFMultipleDailyPrecpDataFile = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
 
             // check if the python script file exists
             if (!File.Exists(targetPythonScriptFile))
@@ -561,8 +516,7 @@ namespace UWRL.CIWaterNetServer.Daymet
             {
                 Directory.CreateDirectory(outNetCDFMultipleDailyPrecpDataFilePath);
             }
-            // >> end of new code
-
+            
             try
             {
                 //create the list of arguments for the python script
@@ -573,12 +527,13 @@ namespace UWRL.CIWaterNetServer.Daymet
                 arguments.Add(outNetCDFMultipleDailyPrecpDataFile);
                 arguments.Add(destinationPathForNetCDFMultipleDailyPrecpDataFile);
                 arguments.Add(timeStep.ToString());
+                arguments.Add(simulationStartDate.ToString("yyyy/MM/dd"));
 
                 // create a string containing all the argument items separated by a space
                 string commandString = string.Join(" ", arguments);
                 object command = commandString; 
 
-                // execute script
+                // execute the python script
                 Python.PythonHelper.ExecuteCommand(command);
                 string responseMsg = string.Format("Watershed Daymet daily multiple precipitation ({0}) NetCDF file was created.", outNetCDFMultipleDailyPrecpDataFile);
                 response.Content = new StringContent(responseMsg);
@@ -596,7 +551,7 @@ namespace UWRL.CIWaterNetServer.Daymet
             return response;
         }
 
-        public static ResponseMessage GetWatershedMultipleVaporPresDataPointsNetCDFFile(CancellationToken ct, int timeStep)
+        public static ResponseMessage GetWatershedMultipleVaporPresDataPointsNetCDFFile(CancellationToken ct, int timeStep, string workingRootDirPath, DateTime simulationStartDate)
         {
             ResponseMessage response = new ResponseMessage();
             if (ct.IsCancellationRequested)
@@ -620,24 +575,11 @@ namespace UWRL.CIWaterNetServer.Daymet
                 logger.Fatal(errMsg);
                 return response;
             }
-
-            //if (EnvironmentSettings.IsLocalHost)
-            //{
-            //    targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\GenerateWatershedDaymetMultipleVpdDataPointsPerDay.py";
-            //    inputSingleDailyVpDataFile = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\vpdatasets\OutNetCDF\vp_daily_one_data.nc";
-            //    outNetCDFMultipleDailyVpDataFile = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\vpdatasets\OutNetCDF\vp_daily_multiple_data.nc";
-            //}
-            //else
-            //{
-            //    targetPythonScriptFile = @"C:\CIWaterPythonScripts\GenerateWatershedDaymetMultipleVpdDataPointsPerDay.py";
-            //    inputSingleDailyVpDataFile = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\vpdatasets\OutNetCDF\vp_daily_one_data.nc";
-            //    outNetCDFMultipleDailyVpDataFile = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\vpdatasets\OutNetCDF\vp_daily_multiple_data.nc";
-            //}
-
-            // >> begin new code
+                        
             targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "GenerateWatershedDaymetMultipleVpdDataPointsPerDay.py");
-            inputSingleDailyVpDataFile = Path.Combine(UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_VP_DIR_PATH, UEB.UEBSettings.WATERSHED_SINGLE_VP_NETCDF_FILE_NAME);
-            outNetCDFMultipleDailyVpDataFilePath = UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_VP_DIR_PATH;
+            string[] paths = new string[3] { workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_VP_SUB_DIR_PATH, UEB.UEBSettings.WATERSHED_SINGLE_VP_NETCDF_FILE_NAME };
+            inputSingleDailyVpDataFile = Path.Combine(paths); // Path.Combine(UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_VP_SUB_DIR_PATH, UEB.UEBSettings.WATERSHED_SINGLE_VP_NETCDF_FILE_NAME);
+            outNetCDFMultipleDailyVpDataFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_VP_SUB_DIR_PATH);
             outNetCDFMultipleDailyVpDataFile = Path.Combine(outNetCDFMultipleDailyVpDataFilePath, UEB.UEBSettings.WATERSHED_MULTIPLE_VP_NETCDF_FILE_NAME);
 
             // check if the python script file exists
@@ -665,8 +607,7 @@ namespace UWRL.CIWaterNetServer.Daymet
             {
                 Directory.CreateDirectory(outNetCDFMultipleDailyVpDataFilePath);
             }
-            // >> end of new code
-
+            
             try
             {
                 // create the list of arguments for the python script
@@ -676,12 +617,13 @@ namespace UWRL.CIWaterNetServer.Daymet
                 arguments.Add(inputSingleDailyVpDataFile);
                 arguments.Add(outNetCDFMultipleDailyVpDataFile);
                 arguments.Add(timeStep.ToString());
+                arguments.Add(simulationStartDate.ToString("yyyy/MM/dd"));
 
                 // create a string containing all the argument items separated by a space
                 string commandString = string.Join(" ", arguments);
                 object command = commandString; 
 
-                // execute script
+                // execute python script
                 Python.PythonHelper.ExecuteCommand(command);
                 string responseMsg = string.Format("Watershed Daymet daily multiple vapor pressure ({0}) NetCDF file was created.", outNetCDFMultipleDailyVpDataFile);
                 response.Content = new StringContent(responseMsg);
@@ -698,8 +640,8 @@ namespace UWRL.CIWaterNetServer.Daymet
             }
             return response;
         }
-                
-        public static ResponseMessage GetWatershedMultipleTempDataPointsNetCDFFile(CancellationToken ct, int timeStep)
+
+        public static ResponseMessage GetWatershedMultipleTempDataPointsNetCDFFile(CancellationToken ct, int timeStep, string workingRootDirPath, DateTime simulationStartDate)
         {
             ResponseMessage response = new ResponseMessage();
             if (ct.IsCancellationRequested)
@@ -708,15 +650,15 @@ namespace UWRL.CIWaterNetServer.Daymet
             }
 
             string targetPythonScriptFile = string.Empty;
-            string inputSingleDailyTminFileName = UEB.UEBSettings.WATERSHED_SINGLE_TEMP_MIN_NETCDF_FILE_NAME; // "tmin_daily_one_data.nc";
-            string inputSingleDailyTmaxFileName = UEB.UEBSettings.WATERSHED_SINGLE_TEMP_MAX_NETCDF_FILE_NAME; // "tmax_daily_one_data.nc";
+            string inputSingleDailyTminFileName = UEB.UEBSettings.WATERSHED_SINGLE_TEMP_MIN_NETCDF_FILE_NAME; 
+            string inputSingleDailyTmaxFileName = UEB.UEBSettings.WATERSHED_SINGLE_TEMP_MAX_NETCDF_FILE_NAME; 
             string inputTempFilePath = string.Empty;
-            string outNetCDFMultipleDailyTempDataFileName = UEB.UEBSettings.WATERSHED_MULTIPLE_TEMP_NETCDF_FILE_NAME; // "ta_daily_multiple_data.nc";
+            string outNetCDFMultipleDailyTempDataFileName = UEB.UEBSettings.WATERSHED_MULTIPLE_TEMP_NETCDF_FILE_NAME; 
             string outNetCDFMultipleDailyTempDataFilePath = string.Empty;
 
-            //this is the dir location where the output netcdf file will be finally saved
+            // this is the dir location where the output netcdf file will be finally saved
             string destinationPathForNetCDFMultipleDailyTempDataFile = string.Empty;
-            string outNetCDFDataVariableName = UEB.UEBSettings.WATERSHED_MULTIPLE_TEMP_NETCDF_VARIABLE_NAME; // "T";
+            string outNetCDFDataVariableName = UEB.UEBSettings.WATERSHED_MULTIPLE_TEMP_NETCDF_VARIABLE_NAME; 
 
             // validate timeStep value
             List<int> allowedTimeStepValues = new List<int> { 1, 2, 3, 4, 6 };
@@ -729,27 +671,11 @@ namespace UWRL.CIWaterNetServer.Daymet
                 logger.Fatal(errMsg);
                 return response;
             }
-
-            //if (EnvironmentSettings.IsLocalHost)
-            //{
-            //    targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\GenerateWatershedDaymetMultipleTempDataPerDay.py";
-            //    inputTempFilePath = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\tempdatasets\OutNetCDF";
-            //    outNetCDFMultipleDailyTempDataFilePath = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\tempdatasets\OutNetCDF";
-            //    destinationPathForNetCDFMultipleDailyTempDataFile = @"E:\CIWaterData\Temp";
-            //}
-            //else
-            //{
-            //    targetPythonScriptFile = @"C:\CIWaterPythonScripts\GenerateWatershedDaymetMultipleTempDataPerDay.py";
-            //    inputTempFilePath = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\tempdatasets\OutNetCDF";
-            //    outNetCDFMultipleDailyTempDataFilePath = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\tempdatasets\OutNetCDF";
-            //    destinationPathForNetCDFMultipleDailyTempDataFile = @"C:\CIWaterData\Temp";
-            //}
-
-            // >> begin new code
+                        
             targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "GenerateWatershedDaymetMultipleTempDataPerDay.py");
-            inputTempFilePath = UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_TEMP_DIR_PATH;
-            outNetCDFMultipleDailyTempDataFilePath = UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_TEMP_DIR_PATH;
-            destinationPathForNetCDFMultipleDailyTempDataFile = UEB.UEBSettings.WORKING_DIR_PATH;
+            inputTempFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_TEMP_SUB_DIR_PATH);
+            outNetCDFMultipleDailyTempDataFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_TEMP_SUB_DIR_PATH);
+            destinationPathForNetCDFMultipleDailyTempDataFile = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
 
             // check if the python script file exists
             if (!File.Exists(targetPythonScriptFile))
@@ -781,11 +707,10 @@ namespace UWRL.CIWaterNetServer.Daymet
             {
                 Directory.CreateDirectory(outNetCDFMultipleDailyTempDataFilePath);
             }
-            // >> end of new code
-
+            
             try
             {
-                //create the list of arguments for the python script
+                // create the list of arguments for the python script
                 List<string> arguments = new List<string>();
                 arguments.Add(EnvironmentSettings.PythonExecutableFile);
                 arguments.Add(targetPythonScriptFile);
@@ -797,12 +722,13 @@ namespace UWRL.CIWaterNetServer.Daymet
                 arguments.Add(outNetCDFMultipleDailyTempDataFileName);
                 arguments.Add(outNetCDFDataVariableName);
                 arguments.Add(timeStep.ToString());
+                arguments.Add(simulationStartDate.ToString("yyyy/MM/dd"));
 
                 // create a string containing all the argument items separated by a space
                 string commandString = string.Join(" ", arguments); 
                 object command = commandString; 
 
-                //execute script
+                // execute python script
                 Python.PythonHelper.ExecuteCommand(command);                
                 string responseMsg = string.Format("Watershed Daymet daily multiple temerature ({0}) NetCDF file was created.", outNetCDFMultipleDailyTempDataFileName);
                 response.Content = new StringContent(responseMsg);
@@ -819,8 +745,8 @@ namespace UWRL.CIWaterNetServer.Daymet
             }
             return response;
         }
-               
-        public static ResponseMessage GetWatershedMultipleRHDataPointsNetCDFFile(CancellationToken ct, int timeStep)
+
+        public static ResponseMessage GetWatershedMultipleRHDataPointsNetCDFFile(CancellationToken ct, int timeStep, string workingRootDirPath)
         {                        
             ResponseMessage response = new ResponseMessage();
             if (ct.IsCancellationRequested)
@@ -828,17 +754,17 @@ namespace UWRL.CIWaterNetServer.Daymet
                 return GetCancellationResponse();
             }
             string targetPythonScriptFile = string.Empty;
-            string inputMultipleDailyTaFileName = UEB.UEBSettings.WATERSHED_MULTIPLE_TEMP_NETCDF_FILE_NAME; // "ta_daily_multiple_data.nc";
-            string inputMultipleDailyVpFileName = UEB.UEBSettings.WATERSHED_MULTIPLE_VP_NETCDF_FILE_NAME; // "vp_daily_multiple_data.nc";
+            string inputMultipleDailyTaFileName = UEB.UEBSettings.WATERSHED_MULTIPLE_TEMP_NETCDF_FILE_NAME; 
+            string inputMultipleDailyVpFileName = UEB.UEBSettings.WATERSHED_MULTIPLE_VP_NETCDF_FILE_NAME; 
             string inputMultipleDailyTaFilePath = string.Empty;
             string inputMultipleDailyVpFilePath = string.Empty;
             string inputMultipleDailyTaFile = string.Empty;
             string inputMultipleDailyVpFile = string.Empty;
-            string outNetCDFMultipleDailyRHDataFileName = UEB.UEBSettings.WATERSHED_MULTIPLE_RH_NETCDF_FILE_NAME; // "rh_daily_multiple_data.nc";
+            string outNetCDFMultipleDailyRHDataFileName = UEB.UEBSettings.WATERSHED_MULTIPLE_RH_NETCDF_FILE_NAME; 
             string outNetCDFMultipleDailyRHDataFilePath = string.Empty;
             string outNetCDFMultipleDailyRHDataFile = string.Empty;
             string destinationPathForNetCDFMultipleDailyRHDataFile = string.Empty;
-            string outNetCDFDataVariableName = UEB.UEBSettings.WATERSHED_MULTIPLE_RH_NETCDF_VARIABLE_NAME; // "rh";
+            string outNetCDFDataVariableName = UEB.UEBSettings.WATERSHED_MULTIPLE_RH_NETCDF_VARIABLE_NAME; 
 
             // validate timeStep value
             List<int> allowedTimeStepValues = new List<int> { 1, 2, 3, 4, 6 };
@@ -851,30 +777,12 @@ namespace UWRL.CIWaterNetServer.Daymet
                 logger.Fatal(errMsg);
                 return response;
             }
-
-            //if (EnvironmentSettings.IsLocalHost)
-            //{
-            //    targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\GenerateWatershedDaymetMultipleRHDataPerDay.py";
-            //    inputMultipleDailyTaFilePath = @"E:\CIWaterData\Temp";
-            //    inputMultipleDailyVpFilePath = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\vpdatasets\OutNetCDF";
-            //    outNetCDFMultipleDailyRHDataFilePath = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\vpdatasets\OutNetCDF";
-            //    destinationPathForNetCDFMultipleDailyRHDataFile = @"E:\CIWaterData\Temp";
-            //}
-            //else
-            //{
-            //    targetPythonScriptFile = @"C:\CIWaterPythonScripts\GenerateWatershedDaymetMultipleRHDataPerDay.py";
-            //    inputMultipleDailyTaFilePath = @"C:\CIWaterData\Temp";
-            //    inputMultipleDailyVpFilePath = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\vpdatasets\OutNetCDF";
-            //    outNetCDFMultipleDailyRHDataFilePath = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\vpdatasets\OutNetCDF";
-            //    destinationPathForNetCDFMultipleDailyRHDataFile = @"C:\CIWaterData\Temp";
-            //}
-
-            // >> begin new code
+                        
             targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "GenerateWatershedDaymetMultipleRHDataPerDay.py");
-            inputMultipleDailyTaFilePath = UEB.UEBSettings.WORKING_DIR_PATH;
-            inputMultipleDailyVpFilePath = UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_VP_DIR_PATH;
-            outNetCDFMultipleDailyRHDataFilePath = UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_RH_DIR_PATH;
-            destinationPathForNetCDFMultipleDailyRHDataFile = UEB.UEBSettings.WORKING_DIR_PATH;
+            inputMultipleDailyTaFilePath = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
+            inputMultipleDailyVpFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_VP_SUB_DIR_PATH);
+            outNetCDFMultipleDailyRHDataFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_RH_SUB_DIR_PATH);
+            destinationPathForNetCDFMultipleDailyRHDataFile = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
 
             // check if the python script file exists
             if (!File.Exists(targetPythonScriptFile))
@@ -885,13 +793,11 @@ namespace UWRL.CIWaterNetServer.Daymet
                 response.Content = new StringContent(errMsg);
                 return response;
             }
-                        
-            // >> end of new code
+            
             inputMultipleDailyTaFile = Path.Combine(inputMultipleDailyTaFilePath, inputMultipleDailyTaFileName);
             inputMultipleDailyVpFile = Path.Combine(inputMultipleDailyVpFilePath, inputMultipleDailyVpFileName);
             outNetCDFMultipleDailyRHDataFile = Path.Combine(outNetCDFMultipleDailyRHDataFilePath, outNetCDFMultipleDailyRHDataFileName);
-            // >> new code
-
+            
             // check if the daily multiple temp netcdf input file exists
             if (!File.Exists(inputMultipleDailyTaFile))
             {
@@ -922,12 +828,10 @@ namespace UWRL.CIWaterNetServer.Daymet
             {
                 Directory.CreateDirectory(destinationPathForNetCDFMultipleDailyRHDataFile);
             }
-
-            // >> end of new code
-
+            
             try
             {
-                //create the list of arguments for the python script
+                // create the list of arguments for the python script
                 List<string> arguments = new List<string>();
                 arguments.Add(EnvironmentSettings.PythonExecutableFile);
                 arguments.Add(targetPythonScriptFile);
@@ -942,7 +846,7 @@ namespace UWRL.CIWaterNetServer.Daymet
                 string commandString = string.Join(" ", arguments);
                 object command = commandString; 
 
-                //execute script
+                // execute python script
                 Python.PythonHelper.ExecuteCommand(command);
                 string responseMsg = string.Format("Watershed Daymet daily multiple RH ({0}) NetCDF file was created.", outNetCDFMultipleDailyRHDataFile);
                 response.Content = new StringContent(responseMsg);
@@ -959,52 +863,27 @@ namespace UWRL.CIWaterNetServer.Daymet
             }
             return response;
         }
-                
-        public static ResponseMessage GetWatershedMultipleWindDataPointsNetCDFFile(CancellationToken ct, float constantWindSpeed)
+
+        public static ResponseMessage GetWatershedMultipleWindDataPointsNetCDFFile(CancellationToken ct, float constantWindSpeed, string workingRootDirPath)
         {
             ResponseMessage response = new ResponseMessage();
+
             if (ct.IsCancellationRequested)
             {
                 return GetCancellationResponse();
             }
+
             string targetPythonScriptFile = string.Empty;
             string inputMultipleDailyPrecpDataFile = string.Empty;
             string outNetCDFMultipleDailyWindDataFile = string.Empty;
             string outNetCDFMultipleDailyWindDataFilePath = string.Empty;
             string destinationPathForNetCDFMultipleDailyWindDataFile = string.Empty;
-            // validate constant wind speed           
-            if (constantWindSpeed < 0 || constantWindSpeed > 20)
-            {
-                string errMsg = string.Format("Provided constant wind speed value ({0}) is invalid.", constantWindSpeed);
-                errMsg += "\nValid range is 0 to 20 m/sec";
-                response.Content = new StringContent(errMsg);
-                response.StatusCode = ResponseStatus.BadRequest;
-                response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/text");
-                logger.Fatal(errMsg);
-                return response;
-            }
-
-            //if (EnvironmentSettings.IsLocalHost)
-            //{
-            //    targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\GenerateWatershedDaymetMultipleWindDataPerDay.py";
-            //    inputMultipleDailyPrecpDataFile = @"E:\CIWaterData\Temp\precp_daily_multiple_data.nc";
-            //    outNetCDFMultipleDailyWindDataFile = @"E:\CIWaterData\DaymetTimeSeriesData\Logan\winddatasets\OutNetCDF\wind_daily_multiple_data.nc";
-            //    destinationPathForNetCDFMultipleDailyWindDataFile = @"E:\CIWaterData\Temp";
-            //}
-            //else
-            //{
-            //    targetPythonScriptFile = @"C:\CIWaterPythonScripts\GenerateWatershedDaymetMultipleWindDataPerDay.py";
-            //    inputMultipleDailyPrecpDataFile = @"C:\CIWaterData\Temp\precp_daily_multiple_data.nc";
-            //    outNetCDFMultipleDailyWindDataFile = @"C:\CIWaterData\DaymetTimeSeriesData\Logan\winddatasets\OutNetCDF\wind_daily_multiple_data.nc";
-            //    destinationPathForNetCDFMultipleDailyWindDataFile = @"C:\CIWaterData\Temp";
-            //}
-
-            // >> begin new code
+                        
             targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "GenerateWatershedDaymetMultipleWindDataPerDay.py");
-            inputMultipleDailyPrecpDataFile = Path.Combine(UEB.UEBSettings.WORKING_DIR_PATH, UEB.UEBSettings.WATERSHED_MULTIPLE_PRECP_NETCDF_FILE_NAME);
-            outNetCDFMultipleDailyWindDataFilePath = UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_WIND_DIR_PATH;
+            inputMultipleDailyPrecpDataFile = Path.Combine(workingRootDirPath, UEB.UEBSettings.WATERSHED_MULTIPLE_PRECP_NETCDF_FILE_NAME);
+            outNetCDFMultipleDailyWindDataFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_WIND_SUB_DIR_PATH);
             outNetCDFMultipleDailyWindDataFile = Path.Combine(outNetCDFMultipleDailyWindDataFilePath, UEB.UEBSettings.WATERSHED_MULTIPLE_WIND_NETCDF_FILE_NAME);
-            destinationPathForNetCDFMultipleDailyWindDataFile = UEB.UEBSettings.WORKING_DIR_PATH;
+            destinationPathForNetCDFMultipleDailyWindDataFile = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
 
             // check if the python script file exists
             if (!File.Exists(targetPythonScriptFile))
@@ -1037,11 +916,9 @@ namespace UWRL.CIWaterNetServer.Daymet
                 Directory.CreateDirectory(outNetCDFMultipleDailyWindDataFilePath);
             }
 
-            // >> end of new code
-
             try
             {
-                //create the list of arguments for the python script
+                // create the list of arguments for the python script
                 List<string> arguments = new List<string>();
                 arguments.Add(EnvironmentSettings.PythonExecutableFile);
                 arguments.Add(targetPythonScriptFile);
@@ -1054,7 +931,7 @@ namespace UWRL.CIWaterNetServer.Daymet
                 string commandString = string.Join(" ", arguments); 
                 object command = commandString;
 
-                //execute script
+                //execute python script
                 Python.PythonHelper.ExecuteCommand(command);
                 string responseMsg = string.Format("Watershed Daymet daily multiple wind ({0}) NetCDF file was created.", outNetCDFMultipleDailyWindDataFile);
                 response.Content = new StringContent(responseMsg);

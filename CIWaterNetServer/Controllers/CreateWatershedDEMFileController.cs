@@ -18,71 +18,61 @@ namespace UWRL.CIWaterNetServer.Controllers
         private string _inputBufferedWSRasterFile = string.Empty; 
         private string _inputReferenceDEMFile = string.Empty;
         private string _targetPythonScriptFile = string.Empty;
-        private string _outputWSDEMRasterFileName = UEB.UEBSettings.WATERSHED_DEM_RASTER_FILE_NAME; // "ws_dem.tif";
+        private string _outputWSDEMRasterFileName = UEB.UEBSettings.WATERSHED_DEM_RASTER_FILE_NAME; 
 
         public CreateWatershedDEMFileController()
-        {
-            //if (EnvironmentSettings.IsLocalHost)
-            //{
-            //    _targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\CreateWatershedDEMFile.py";
-            //    _inputBufferedWSRasterFile = @"E:\CIWaterData\Temp\ws_buffered.tif"; 
-            //    _inputReferenceDEMFile = @"E:\CIWaterData\DEM\gsl100.tif";                
-            //}
-            //else
-            //{
-            //    _targetPythonScriptFile = @"C:\CIWaterPythonScripts\CreateWatershedDEMFile.py";
-            //    _inputBufferedWSRasterFile = @"C:\CIWaterData\Temp\ws_buffered.tif"; 
-            //    _inputReferenceDEMFile = @"C:\CIWaterData\DEM\gsl100.tif";                
-            //}
-
-            // >> begin new code
+        {            
             _targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "CreateWatershedDEMFile.py");
-            _inputBufferedWSRasterFile = Path.Combine(UEB.UEBSettings.WORKING_DIR_PATH, UEB.UEBSettings.WATERSHED_BUFERRED_RASTER_FILE_NAME);
-            _inputReferenceDEMFile = Path.Combine(UEB.UEBSettings.DEM_RESOURCE_DIR_PATH, UEB.UEBSettings.DEM_RESOURCE_FILE_NAME);
-
-            // >> end new code
+            //_inputBufferedWSRasterFile = Path.Combine(UEB.UEBSettings.WORKING_DIR_PATH, UEB.UEBSettings.WATERSHED_BUFERRED_RASTER_FILE_NAME);
+            _inputReferenceDEMFile = Path.Combine(UEB.UEBSettings.DEM_RESOURCE_DIR_PATH, UEB.UEBSettings.DEM_RESOURCE_FILE_NAME);            
         }
+
         public HttpResponseMessage GetWatershedDEMFile()
         {
-            return GenerateWSDEMFile(0);            
+            string workingRootDirPath = Guid.NewGuid().ToString();
+            return GenerateWSDEMFile(0, workingRootDirPath);            
         }
 
         public HttpResponseMessage GetWatershedDEMFile(int cellSize)
         {
-            return GenerateWSDEMFile(cellSize);
+            string workingRootDirPath = Guid.NewGuid().ToString();
+            return GenerateWSDEMFile(cellSize, workingRootDirPath);
         }
 
-        private HttpResponseMessage GenerateWSDEMFile(int cellSize)
+        public HttpResponseMessage GetWatershedDEMFile(int cellSize, string workingRootDirPath)
+        {            
+            return GenerateWSDEMFile(cellSize, workingRootDirPath);
+        }
+
+        private HttpResponseMessage GenerateWSDEMFile(int cellSize, string workingRootDirPath)
         {
             HttpResponseMessage response = new HttpResponseMessage();
 
             logger.Info("Creating watershed DEM raster file...");  
 
             cellSize = Math.Abs(cellSize);
-            
-            //check if buffered watershed file exists
+            _inputBufferedWSRasterFile = Path.Combine(workingRootDirPath, UEB.UEBSettings.WATERSHED_BUFERRED_RASTER_FILE_NAME);
+
+            // check if buffered watershed file exists
             if (!File.Exists(_inputBufferedWSRasterFile))
             {
                 string errMsg = string.Format("Internal error: Buffered watershed raster file ({0}) was not found.", _inputBufferedWSRasterFile);
                 logger.Error(errMsg);
                 response.StatusCode = HttpStatusCode.NotFound;
                 response.Content = new StringContent(errMsg);
-                return response;
-                //return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);
+                return response;                
             }
 
-            //check if reference DEM file that includes watershed exists
+            // check if reference DEM file that includes watershed exists
             if (!File.Exists(_inputReferenceDEMFile))
             {
                 string errMsg = string.Format("Internal error: Reference DEM file ({0}) was not found.", _inputReferenceDEMFile);
                 logger.Error(errMsg);
                 response.StatusCode = HttpStatusCode.NotFound;
                 response.Content = new StringContent(errMsg);
-                return response;
-                //return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);
+                return response;                
             }
-
-            // >> new code
+                        
             // check if the python script file exists
             if (!File.Exists(_targetPythonScriptFile))
             {
@@ -92,12 +82,11 @@ namespace UWRL.CIWaterNetServer.Controllers
                 response.Content = new StringContent(errMsg);
                 return response;
             }
-            // end of new code
-
+            
             try
             {
                 List<string> arguments = new List<string>();
-                arguments.Add(EnvironmentSettings.PythonExecutableFile); // @"C:\Python27\ArcGIS10.1\Python.exe");
+                arguments.Add(EnvironmentSettings.PythonExecutableFile); 
                 arguments.Add(_targetPythonScriptFile);
                 arguments.Add(_inputReferenceDEMFile);
                 arguments.Add(_inputBufferedWSRasterFile);
@@ -109,9 +98,10 @@ namespace UWRL.CIWaterNetServer.Controllers
                 }
 
                 // create a string containing all the argument items separated by a space
-                string commandString = string.Join(" ", arguments); //>> new code
-                object command = commandString; //>>>new code
+                string commandString = string.Join(" ", arguments); 
+                object command = commandString; 
 
+                // execute python script
                 Python.PythonHelper.ExecuteCommand(command);                 
                 string responseMsg = string.Format("Watershed DEM raster file ({0}) was created.", _outputWSDEMRasterFileName);
                 response.Content = new StringContent(responseMsg);

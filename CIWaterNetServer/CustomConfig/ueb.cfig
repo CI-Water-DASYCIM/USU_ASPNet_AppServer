@@ -1,6 +1,6 @@
 working.dir.path=E:\CIWaterData\Temp
 # testing comment
-test wrong format missing equal character
+test wrong format missing equal character - this line will be skipped
 python.script.dir.path=E:\SoftwareProjects\CIWaterPythonScripts
 daymet.resource.temp.dir.path=E:\CIWaterData\DaymetTimeSeriesData\Logan\tempdatasets
 daymet.resource.precp.dir.path=E:\CIWaterData\DaymetTimeSeriesData\Logan\precdatasets
@@ -14,4 +14,5 @@ nlcd.resource.file.name=ProjNLCD2006_LC_N36W096_v1.img
 dem.resource.dir.path=E:\CIWaterData\DataSources\DEM
 dem.resource.file.name=gsl100.tif
 watershed.constant.wind.speed=2.0
+model.output.folder.name =outputs
 

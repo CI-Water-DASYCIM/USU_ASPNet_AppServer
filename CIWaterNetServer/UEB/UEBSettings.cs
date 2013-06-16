@@ -10,7 +10,10 @@ namespace UWRL.CIWaterNetServer.UEB
     public class UEBSettings
     {
         #region public fields
+        public static readonly string WATERSHED_SHAPE_ZIP_FILE_NAME = "shapefiles.zip";
         public static readonly string WATERSHED_SHAPE_FILE_NAME = "Watershed.shp";
+        public static readonly string WATERSHED_POINT_SHAPE_FILE_NAME = "Watershedpoint.shp";
+        public static readonly string WATERSHED_STREAM_SHAPE_FILE_NAME = "Stream.shp";
         public static readonly string WATERSHED_BUFERRED_SHAPE_FILE_NAME = "Watershed_buffered.shp";
         public static readonly string WATERSHED_BUFERRED_RASTER_FILE_NAME = "Watershed_buffered.tif";
         public static readonly string WATERSHED_NETCDF_FILE_NAME = "Watershed.nc";
@@ -39,22 +42,25 @@ namespace UWRL.CIWaterNetServer.UEB
         public static readonly string WATERSHED_MULTIPLE_RH_NETCDF_VARIABLE_NAME = "rh";
         public static readonly string UEB_PACKAGE_FILE_NAME = "UEBPackage.zip";
         public static readonly string WATERSHED_ATMOSPHERIC_PRESSURE_FILE_NAME = "ws_atom_pres.txt";
+        public static readonly string PACKAGE_BUILD_STATUS_FILE_NAME = "package_build_status.txt";
+        public static readonly string PACKAGE_OUTPUT_SUB_DIR_PATH = "UEBPackage";
+        public static readonly string PACKAGE_FILES_OUTPUT_SUB_DIR_PATH = "UEBPackageFiles";
+        public static readonly string PACKAGE_BUILD_REQUEST_SUB_DIR_PATH = "UEBPackageRequest";
+        public static readonly string PACKAGE_BUILD_REQUEST_ZIP_FILE_NAME = "uebPkgRequest.zip";
+        public static readonly string DAYMET_NETCDF_OUTPUT_TEMP_SUB_DIR_PATH = @"Daymet\TEMP_OUT_NETCDF";
+        public static readonly string DAYMET_RASTER_OUTPUT_TEMP_SUB_DIR_PATH = @"Daymet\TEMP_OUT_RASTER";
+        public static readonly string DAYMET_NETCDF_OUTPUT_VP_SUB_DIR_PATH = @"Daymet\VP_OUT_NETCDF";
+        public static readonly string DAYMET_RASTER_OUTPUT_VP_SUB_DIR_PATH = @"Daymet\VP_OUT_RASTER";
+        public static readonly string DAYMET_NETCDF_OUTPUT_RH_SUB_DIR_PATH = @"Daymet\RH_OUT_NETCDF";
+        public static readonly string DAYMET_NETCDF_OUTPUT_PRECP_SUB_DIR_PATH = @"Daymet\PRECP_OUT_NETCDF";
+        public static readonly string DAYMET_RASTER_OUTPUT_PRECP_SUB_DIR_PATH = @"Daymet\PRECP_OUT_RASTER";
+        public static readonly string DAYMET_NETCDF_OUTPUT_WIND_SUB_DIR_PATH = @"Daymet\WIND_OUT_NETCDF";
         #endregion public fields
 
         #region private fields
         private static Logger _logger = LogManager.GetCurrentClassLogger();
-        private static string _uebConfigFileName = "ueb.cfig";
-        private static readonly string _DAYMET_NETCDF_OUTPUT_TEMP_SUB_DIR_PATH = @"Daymet\TEMP_OUT_NETCDF";
-        private static readonly string _DAYMET_NETCDF_OUTPUT_PRECP_SUB_DIR_PATH = @"Daymet\PRECP_OUT_NETCDF";
-        private static readonly string _DAYMET_NETCDF_OUTPUT_VP_SUB_DIR_PATH = @"Daymet\VP_OUT_NETCDF";
-        private static readonly string _DAYMET_NETCDF_OUTPUT_RH_SUB_DIR_PATH = @"Daymet\RH_OUT_NETCDF";
-        private static readonly string _DAYMET_NETCDF_OUTPUT_WIND_SUB_DIR_PATH = @"Daymet\WIND_OUT_NETCDF";
-        private static readonly string _DAYMET_RASTER_OUTPUT_TEMP_SUB_DIR_PATH = @"Daymet\TEMP_OUT_RASTER";
-        private static readonly string _DAYMET_RASTER_OUTPUT_PRECP_SUB_DIR_PATH = @"Daymet\PRECP_OUT_RASTER";
-        private static readonly string _DAYMET_RASTER_OUTPUT_VP_SUB_DIR_PATH = @"Daymet\VP_OUT_RASTER";
-        private static readonly string _DAYMET_RASTER_OUTPUT_WIND_SUB_DIR_PATH = @"Daymet\WIND_OUT_RASTER";
-        private static readonly string _SHAPE_FILES_SUB_DIR_PATH = "SHAPE_FILES";
-        private static readonly string _PACKAGE_SUB_DIR_PATH = "UEBPackage";
+        private static string _uebConfigFileName = "ueb.cfig";        
+        private static readonly string _SHAPE_FILES_SUB_DIR_PATH = "SHAPE_FILES";        
         private static Dictionary<string, string> _configSettings = new Dictionary<string, string>();
         private static UEBSettings _instance = new UEBSettings();
         #endregion private fields
@@ -78,6 +84,7 @@ namespace UWRL.CIWaterNetServer.UEB
             _configSettings.Add("dem.resource.dir.path", string.Empty);
             _configSettings.Add("python.script.dir.path", string.Empty);
             _configSettings.Add("watershed.constant.wind.speed", string.Empty);
+            _configSettings.Add("model.output.folder.name", string.Empty);
 
             // read the config file here and populate all the properties of this class
             string customConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CustomConfig");
@@ -225,6 +232,10 @@ namespace UWRL.CIWaterNetServer.UEB
                 bool isSuccess = float.TryParse(_configSettings["watershed.constant.wind.speed"], out windSpeed);
                 if(isSuccess)
                 {
+                    if (windSpeed < 0)
+                    {
+                        windSpeed = Math.Abs(windSpeed);
+                    }
                     return windSpeed;
                 }
 
@@ -233,60 +244,66 @@ namespace UWRL.CIWaterNetServer.UEB
                 return windSpeed;
             }
         }
-        public static string DAYMET_NETCDF_OUTPUT_TEMP_DIR_PATH
+
+        public static string MODEL_OUTPUT_FOLDER_NAME
         {
-            get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_NETCDF_OUTPUT_TEMP_SUB_DIR_PATH);}
+            get { return _configSettings["model.output.folder.name"]; }
         }
 
-        public static string DAYMET_NETCDF_OUTPUT_PRECP_DIR_PATH
-        {
-            get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_NETCDF_OUTPUT_PRECP_SUB_DIR_PATH);}
-        }
+        //public static string DAYMET_NETCDF_OUTPUT_TEMP_DIR_PATH
+        //{
+        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_NETCDF_OUTPUT_TEMP_SUB_DIR_PATH);}
+        //}
 
-        public static string DAYMET_NETCDF_OUTPUT_VP_DIR_PATH
-        {
-            get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_NETCDF_OUTPUT_VP_SUB_DIR_PATH);}
-        }
+        //public static string DAYMET_NETCDF_OUTPUT_PRECP_DIR_PATH
+        //{
+        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_NETCDF_OUTPUT_PRECP_SUB_DIR_PATH);}
+        //}
 
-        public static string DAYMET_NETCDF_OUTPUT_RH_DIR_PATH
-        {
-            get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_NETCDF_OUTPUT_RH_SUB_DIR_PATH); }
-        }
+        //public static string DAYMET_NETCDF_OUTPUT_VP_DIR_PATH
+        //{
+        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_NETCDF_OUTPUT_VP_SUB_DIR_PATH);}
+        //}
 
-        public static string DAYMET_NETCDF_OUTPUT_WIND_DIR_PATH
-        {
-            get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_NETCDF_OUTPUT_WIND_SUB_DIR_PATH);}
-        }
+        //public static string DAYMET_NETCDF_OUTPUT_RH_DIR_PATH
+        //{
+        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_NETCDF_OUTPUT_RH_SUB_DIR_PATH); }
+        //}
+        //public static string DAYMET_NETCDF_OUTPUT_WIND_DIR_PATH
+        //{
+        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_NETCDF_OUTPUT_WIND_SUB_DIR_PATH);}
+        //}
 
-        public static string DAYMET_RASTER_OUTPUT_TEMP_DIR_PATH
-        {
-            get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_RASTER_OUTPUT_TEMP_SUB_DIR_PATH); }
-        }
 
-        public static string DAYMET_RASTER_OUTPUT_PRECP_DIR_PATH
-        {
-            get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_RASTER_OUTPUT_PRECP_SUB_DIR_PATH); }
-        }
+        //public static string DAYMET_RASTER_OUTPUT_TEMP_DIR_PATH
+        //{
+        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_RASTER_OUTPUT_TEMP_SUB_DIR_PATH); }
+        //}
 
-        public static string DAYMET_RASTER_OUTPUT_VP_DIR_PATH
-        {
-            get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_RASTER_OUTPUT_VP_SUB_DIR_PATH); }
-        }
+        //public static string DAYMET_RASTER_OUTPUT_PRECP_DIR_PATH
+        //{
+        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_RASTER_OUTPUT_PRECP_SUB_DIR_PATH); }
+        //}
 
-        public static string DAYMET_RASTER_OUTPUT_WIND_DIR_PATH
-        {
-            get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_RASTER_OUTPUT_WIND_SUB_DIR_PATH); }
-        }
+        //public static string DAYMET_RASTER_OUTPUT_VP_DIR_PATH
+        //{
+        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_RASTER_OUTPUT_VP_SUB_DIR_PATH); }
+        //}
+
+        //public static string DAYMET_RASTER_OUTPUT_WIND_DIR_PATH
+        //{
+        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_RASTER_OUTPUT_WIND_SUB_DIR_PATH); }
+        //}
         
         public static string SHAPE_FILES_DIR_PATH
         {
             get { return Path.Combine(WORKING_DIR_PATH, _SHAPE_FILES_SUB_DIR_PATH); }
         }
 
-        public static string UEB_PACKAGE_DIR_PATH
-        {
-            get { return Path.Combine(WORKING_DIR_PATH, _PACKAGE_SUB_DIR_PATH); }
-        }
+        //public static string UEB_PACKAGE_DIR_PATH
+        //{
+        //    get { return Path.Combine(WORKING_DIR_PATH, _PACKAGE_SUB_DIR_PATH); }
+        //}
 
         #endregion public properties
     }

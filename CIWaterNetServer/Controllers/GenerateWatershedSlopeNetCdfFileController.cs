@@ -15,68 +15,63 @@ namespace UWRL.CIWaterNetServer.Controllers
     {
         private static Logger logger = LogManager.GetCurrentClassLogger();
 
-        private string _inputWatershedFilePath = string.Empty; 
-        private string _inputWSDEMRasterFile = string.Empty;
-        private string _targetPythonScriptFile = string.Empty;
-
         public HttpResponseMessage GetWatershedSlopeNetCDFFile()
+        {
+            string workingRootDirPath = Guid.NewGuid().ToString();
+            return CreateWatershedSlopeNetCDFFile(workingRootDirPath);
+        }
+
+        public HttpResponseMessage GetWatershedSlopeNetCDFFile(string workingRootDirPath)
+        {
+            return CreateWatershedSlopeNetCDFFile(workingRootDirPath);
+        }
+
+        private HttpResponseMessage CreateWatershedSlopeNetCDFFile(string workingRootDirPath)
         {
             HttpResponseMessage response = new HttpResponseMessage();
 
             logger.Info("Creating watershed slope netcdf file...");
 
-            string wsDEMFileName = UEB.UEBSettings.WATERSHED_DEM_RASTER_FILE_NAME; // "ws_dem.tif";
-            string outputWSNetCdfSlopeFileName = UEB.UEBSettings.WATERSHED_SLOPE_NETCDF_FILE_NAME; // "slope.nc";
-
-            //if (EnvironmentSettings.IsLocalHost)
-            //{
-            //    _targetPythonScriptFile = @"E:\SoftwareProjects\CIWaterPythonScripts\CalculateWatershedSlope.py";
-            //    _inputWatershedFilePath = @"E:\CIWaterData\Temp";
-            //}
-            //else
-            //{
-            //    _targetPythonScriptFile = @"C:\CIWaterPythonScripts\CalculateWatershedSlope.py";
-            //    _inputWatershedFilePath = @"C:\CIWaterData\Temp";
-            //}
-              
-            // begin new code
-            _targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "CalculateWatershedSlope.py");
-            _inputWatershedFilePath = UEB.UEBSettings.WORKING_DIR_PATH;
+            string inputWatershedFilePath = string.Empty; 
+            string inputWSDEMRasterFile = string.Empty;
+            string targetPythonScriptFile = string.Empty;
+            string wsDEMFileName = UEB.UEBSettings.WATERSHED_DEM_RASTER_FILE_NAME; 
+            string outputWSNetCdfSlopeFileName = UEB.UEBSettings.WATERSHED_SLOPE_NETCDF_FILE_NAME; 
+                        
+            targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "CalculateWatershedSlope.py");
+            inputWatershedFilePath = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
 
             // check if the python script file exists
-            if (!File.Exists(_targetPythonScriptFile))
+            if (!File.Exists(targetPythonScriptFile))
             {
-                string errMsg = string.Format("Python script file ({0}) to generate watershed slope netcdf file was not found.", _targetPythonScriptFile);
+                string errMsg = string.Format("Python script file ({0}) to generate watershed slope netcdf file was not found.", targetPythonScriptFile);
                 logger.Error(errMsg);
                 response.StatusCode =  HttpStatusCode.NotFound;
                 response.Content = new StringContent(errMsg);
                 return response;
             }
+            
+            inputWSDEMRasterFile = Path.Combine(inputWatershedFilePath, wsDEMFileName);
 
-            // end of new code
-
-            _inputWSDEMRasterFile = Path.Combine(_inputWatershedFilePath, wsDEMFileName);
-
-            if (!File.Exists(_inputWSDEMRasterFile))
+            if (!File.Exists(inputWSDEMRasterFile))
             {
-                string errMsg = string.Format("No DEM file ({0}) for the watershed was found.", _inputWSDEMRasterFile);
+                string errMsg = string.Format("No DEM file ({0}) for the watershed was found.", inputWSDEMRasterFile);
                 logger.Error(errMsg);
                 response.StatusCode = HttpStatusCode.NotFound;
                 response.Content = new StringContent(errMsg);
                 return response;
-                //return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);
             }
 
             try
             {
                 List<string> arguments = new List<string>();
-                arguments.Add(EnvironmentSettings.PythonExecutableFile); //@"C:\Python27\ArcGIS10.1\Python.exe");
-                arguments.Add(_targetPythonScriptFile);
-                arguments.Add(_inputWSDEMRasterFile);
+                arguments.Add(EnvironmentSettings.PythonExecutableFile); 
+                arguments.Add(targetPythonScriptFile);
+                arguments.Add(inputWSDEMRasterFile);
                 arguments.Add(outputWSNetCdfSlopeFileName);
 
                 // create a string containing all the argument items separated by a space
-                string commandString = string.Join(" ", arguments); //>> new code
+                string commandString = string.Join(" ", arguments); 
                 object command = commandString; 
                 Python.PythonHelper.ExecuteCommand(command); 
                                
