@@ -14,5 +14,7 @@ nlcd.resource.file.name=ProjNLCD2006_LC_N36W096_v1.img
 dem.resource.dir.path=E:\CIWaterData\DataSources\DEM
 dem.resource.file.name=gsl100.tif
 watershed.constant.wind.speed=2.0
-model.output.folder.name =outputs
+ueb.executable.dir.path=E:\CIWaterData\UEB_Executables
+ueb.execution.control.file.name=overallcontrol.dat
+model.output.folder.name=outputs
 

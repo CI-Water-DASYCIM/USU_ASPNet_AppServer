@@ -43,6 +43,9 @@ namespace UWRL.CIWaterNetServer.UEB
         public static readonly string UEB_PACKAGE_FILE_NAME = "UEBPackage.zip";
         public static readonly string WATERSHED_ATMOSPHERIC_PRESSURE_FILE_NAME = "ws_atom_pres.txt";
         public static readonly string PACKAGE_BUILD_STATUS_FILE_NAME = "package_build_status.txt";
+        public static readonly string UEB_RUN_OUTPUT_ZIP_FILE_NAME = "ueb_run_output.zip";
+        public static readonly string UEB_RUN_STATUS_FILE_NAME = "ueb_run_status.txt";
+        public static readonly string UEB_RUN_FOLDER_NAME = "UEB_Run";
         public static readonly string PACKAGE_OUTPUT_SUB_DIR_PATH = "UEBPackage";
         public static readonly string PACKAGE_FILES_OUTPUT_SUB_DIR_PATH = "UEBPackageFiles";
         public static readonly string PACKAGE_BUILD_REQUEST_SUB_DIR_PATH = "UEBPackageRequest";
@@ -83,7 +86,9 @@ namespace UWRL.CIWaterNetServer.UEB
             _configSettings.Add("dem.resource.file.name", string.Empty);
             _configSettings.Add("dem.resource.dir.path", string.Empty);
             _configSettings.Add("python.script.dir.path", string.Empty);
-            _configSettings.Add("watershed.constant.wind.speed", string.Empty);
+            _configSettings.Add("watershed.constant.wind.speed", string.Empty);           
+            _configSettings.Add("ueb.executable.dir.path", string.Empty);
+            _configSettings.Add("ueb.execution.control.file.name", string.Empty);
             _configSettings.Add("model.output.folder.name", string.Empty);
 
             // read the config file here and populate all the properties of this class
@@ -245,66 +250,27 @@ namespace UWRL.CIWaterNetServer.UEB
             }
         }
 
+        public static string UEB_EXECUTABLE_DIR_PATH
+        {
+            get { return _configSettings["ueb.executable.dir.path"]; }
+        }
+
+        public static string UEB_EXECUTION_CONTROL_FILE_NAME
+        {
+            get { return _configSettings["ueb.execution.control.file.name"]; }
+        }
+
         public static string MODEL_OUTPUT_FOLDER_NAME
         {
             get { return _configSettings["model.output.folder.name"]; }
         }
-
-        //public static string DAYMET_NETCDF_OUTPUT_TEMP_DIR_PATH
-        //{
-        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_NETCDF_OUTPUT_TEMP_SUB_DIR_PATH);}
-        //}
-
-        //public static string DAYMET_NETCDF_OUTPUT_PRECP_DIR_PATH
-        //{
-        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_NETCDF_OUTPUT_PRECP_SUB_DIR_PATH);}
-        //}
-
-        //public static string DAYMET_NETCDF_OUTPUT_VP_DIR_PATH
-        //{
-        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_NETCDF_OUTPUT_VP_SUB_DIR_PATH);}
-        //}
-
-        //public static string DAYMET_NETCDF_OUTPUT_RH_DIR_PATH
-        //{
-        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_NETCDF_OUTPUT_RH_SUB_DIR_PATH); }
-        //}
-        //public static string DAYMET_NETCDF_OUTPUT_WIND_DIR_PATH
-        //{
-        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_NETCDF_OUTPUT_WIND_SUB_DIR_PATH);}
-        //}
-
-
-        //public static string DAYMET_RASTER_OUTPUT_TEMP_DIR_PATH
-        //{
-        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_RASTER_OUTPUT_TEMP_SUB_DIR_PATH); }
-        //}
-
-        //public static string DAYMET_RASTER_OUTPUT_PRECP_DIR_PATH
-        //{
-        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_RASTER_OUTPUT_PRECP_SUB_DIR_PATH); }
-        //}
-
-        //public static string DAYMET_RASTER_OUTPUT_VP_DIR_PATH
-        //{
-        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_RASTER_OUTPUT_VP_SUB_DIR_PATH); }
-        //}
-
-        //public static string DAYMET_RASTER_OUTPUT_WIND_DIR_PATH
-        //{
-        //    get { return Path.Combine(WORKING_DIR_PATH, _DAYMET_RASTER_OUTPUT_WIND_SUB_DIR_PATH); }
-        //}
-        
+                        
         public static string SHAPE_FILES_DIR_PATH
         {
             get { return Path.Combine(WORKING_DIR_PATH, _SHAPE_FILES_SUB_DIR_PATH); }
         }
 
-        //public static string UEB_PACKAGE_DIR_PATH
-        //{
-        //    get { return Path.Combine(WORKING_DIR_PATH, _PACKAGE_SUB_DIR_PATH); }
-        //}
-
+        
         #endregion public properties
     }
 }

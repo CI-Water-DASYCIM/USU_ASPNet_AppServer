@@ -21,10 +21,11 @@ namespace UWRL.CIWaterNetServer.Controllers
         #region Variables
         private static Logger logger = LogManager.GetCurrentClassLogger();        
         
-        private string _targetShapeFilesDirPath = string.Empty;
-        private string _targetTempShapeFilesDirPath = string.Empty; 
-        private string _targetShapeFileZipDirPath = string.Empty;  //@"C:\temp\shapefiles\zip";
-        
+        private string _targetShapeFilesRootDirPath = string.Empty;
+        private string _targetShapeFilesDirPath = string.Empty; 
+        private string _targetShapeFileZipDirPath = string.Empty;
+        private string _targetShapeFileGuidDirPath = string.Empty;  
+
         /// <summary>
         /// watershed outlet point file name
         /// </summary>
@@ -48,43 +49,34 @@ namespace UWRL.CIWaterNetServer.Controllers
         #region constructor
         public EPADelineateController()
         {
-           
-            // >>> TODO: remove the magic strings as done in other classes
-            
-            //if (EnvironmentSettings.IsLocalHost)
-            //{
-            //    _targetShapeFilesDirPath = @"E:\CIWaterData\Temp";
-            //    _targetTempShapeFilesDirPath = @"E:\CIWaterData\Temp\ShapeFiles";
-            //    _targetShapeFileZipDirPath = @"E:\CIWaterData\Temp\zip";
-            //}
-            //else
-            //{
-            //    _targetShapeFilesDirPath = @"C:\CIWaterData\Temp";
-            //    _targetTempShapeFilesDirPath = @"C:\CIWaterData\Temp\ShapeFiles";
-            //    _targetShapeFileZipDirPath = @"C:\CIWaterData\Temp\zip";
-            //}
+            // get a guid for creating folder by the guid value
+            string folderByGuid = Guid.NewGuid().ToString();
 
-            // >> new code begin
-            _targetShapeFilesDirPath = UEB.UEBSettings.WORKING_DIR_PATH; // @"C:\CIWaterData\Temp";
-            _targetTempShapeFilesDirPath = Path.Combine(UEB.UEBSettings.WORKING_DIR_PATH, "ShapeFiles"); // @"C:\CIWaterData\Temp\ShapeFiles";
-            _targetShapeFileZipDirPath = Path.Combine(UEB.UEBSettings.WORKING_DIR_PATH, "ShapeFilesZip"); // @"C:\CIWaterData\Temp\zip";
+            _targetShapeFilesRootDirPath = Path.Combine(UEB.UEBSettings.WORKING_DIR_PATH,"ShapeFiles"); // @"C:\CIWaterData\Temp\ShapeFiles";
+            _targetShapeFileGuidDirPath = Path.Combine(_targetShapeFilesRootDirPath, folderByGuid); // @"C:\CIWaterData\Temp\ShapeFiles\[guid value]";
+            _targetShapeFilesDirPath = Path.Combine(_targetShapeFileGuidDirPath, "ShapeFiles"); // @"C:\CIWaterData\Temp\ShapeFiles\[guid value]\ShapeFiles";
+            _targetShapeFileZipDirPath = Path.Combine(_targetShapeFileGuidDirPath, "ShapeFilesZip"); // @"C:\CIWaterData\Temp\ShapeFiles\[guid value]\ShapeFilesZip";
 
             // create directories if they do not already exist
+            if (!Directory.Exists(_targetShapeFilesRootDirPath))
+            {
+                Directory.CreateDirectory(_targetShapeFilesRootDirPath);
+            }
+
+            if (!Directory.Exists(_targetShapeFileGuidDirPath))
+            {
+                Directory.CreateDirectory(_targetShapeFileGuidDirPath);
+            }
+
             if (!Directory.Exists(_targetShapeFilesDirPath))
             {
                 Directory.CreateDirectory(_targetShapeFilesDirPath);
             }
 
-            if (!Directory.Exists(_targetTempShapeFilesDirPath))
-            {
-                Directory.CreateDirectory(_targetTempShapeFilesDirPath);
-            }
-
             if (!Directory.Exists(_targetShapeFileZipDirPath))
             {
                 Directory.CreateDirectory(_targetShapeFileZipDirPath);
-            }
-            // >> new code end
+            }            
         }
 
         #endregion
@@ -117,56 +109,7 @@ namespace UWRL.CIWaterNetServer.Controllers
             {
                 Delineate(watershedOutletLat, watershedOutletLon);
 
-                // see the link below to continue implementing this method
-                //http://stackoverflow.com/questions/12145390/how-to-set-downloading-file-name-in-asp-net-mvc-web-api
-                // still need to figure out how all files associated with a shapefile (file names are same with diff extenions)
-                // can be zipped and temporarily saved and then read to MemoryStream object as shown in the above link
-                // and then retunred as part of the HttpresponseMessage
-
-                if (Directory.Exists(_targetTempShapeFilesDirPath) == false)
-                {
-                    Directory.CreateDirectory(_targetTempShapeFilesDirPath);
-                }
-                else
-                {
-                    DirectoryInfo dir = new DirectoryInfo(_targetTempShapeFilesDirPath);
-                    dir.Delete(true);
-                    Directory.CreateDirectory(_targetTempShapeFilesDirPath);
-                }
-                           
-                if (Directory.Exists(_targetShapeFileZipDirPath) == false)
-                {
-                    Directory.CreateDirectory(_targetShapeFileZipDirPath);
-                }
-
-                // copy all shape files from the Temp directory to _targetTempShapeFilesDirPath
-                string[] shapeFiles = Directory.GetFiles(_targetShapeFilesDirPath, "*.shp");
-
-                string fileName = string.Empty;
-                string destFile = string.Empty;
-
-                foreach (string file in shapeFiles)
-                {
-                    string shapeFileName = Path.GetFileNameWithoutExtension(file);
-                                        
-                    // get all files matching the above file name
-                    string[] machingShapeFiles = Directory.GetFiles(_targetShapeFilesDirPath, shapeFileName + ".*");
-
-                    foreach (string msFile in machingShapeFiles)
-                    {
-                        if (Path.GetExtension(msFile) != ".nc")
-                        {
-                            // Use static Path methods to extract only the file name from the path.
-                            fileName = Path.GetFileName(msFile);
-                            destFile = Path.Combine(_targetTempShapeFilesDirPath, fileName);
-
-                            // Copy the files and overwrite destination files if they already exist.
-                            File.Copy(file, destFile, true);
-                        }
-                    }
-                    
-                }
-
+                // Ref:http://stackoverflow.com/questions/12145390/how-to-set-downloading-file-name-in-asp-net-mvc-web-api                
                 // create a zip file of all shapes files
                 string zipFilePath = Path.Combine(_targetShapeFileZipDirPath, "shapefiles.zip");
 
@@ -175,7 +118,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                     File.Delete(zipFilePath);
                 }
 
-                ZipFile.CreateFromDirectory(_targetTempShapeFilesDirPath, zipFilePath);
+                ZipFile.CreateFromDirectory(_targetShapeFilesDirPath, zipFilePath);
                 
                 // load the zip file to memory
                 MemoryStream ms = new MemoryStream();
@@ -194,20 +137,22 @@ namespace UWRL.CIWaterNetServer.Controllers
                     ms.Position = 0;
                     response.Content = new StreamContent(ms);
                     response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-                    //CacheControlHeaderValue cacheControlHeaderValue = new CacheControlHeaderValue();
-                    //cacheControlHeaderValue.NoCache = true;
-                    //response.Headers.CacheControl = cacheControlHeaderValue;
-
+                    
                     // Ref: http://weblogs.asp.net/cibrax/archive/2011/04/25/implementing-caching-in-your-wcf-web-apis.aspx
                     // set the browser to cache this response for 10 secs only
                     response.Content.Headers.Expires = DateTime.Now.AddSeconds(10);
                     response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue("attachment")
                     {
-                        FileName = UEB.UEBSettings.WATERSHED_SHAPE_ZIP_FILE_NAME // "shapefiles.zip"
+                        FileName = UEB.UEBSettings.WATERSHED_SHAPE_ZIP_FILE_NAME 
                     };
 
-                    logger.Info("All shape files were zipped.");
+                    logger.Info("All shape files were zipped and sent to the client as a zip file.");
                 }
+
+                // clean up the temporary folders for shape files
+                DirectoryInfo dir = new DirectoryInfo(_targetShapeFileGuidDirPath);
+                dir.Delete(true);                
+
             }
             catch (Exception ex)
             {                

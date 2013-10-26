@@ -85,7 +85,7 @@ namespace UWRL.CIWaterNetServer.Daymet
             inputTempDaymetDataFilePath = UEB.UEBSettings.DAYMET_RESOURCE_TEMP_DIR_PATH;
             outNetCDFTempDataFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_TEMP_SUB_DIR_PATH);
             outTempDataRasterFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_RASTER_OUTPUT_TEMP_SUB_DIR_PATH);
-            watershedFilePath = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
+            watershedFilePath = workingRootDirPath; 
                         
             inputWSDEMRasterFile = Path.Combine(watershedFilePath, wsDEMFileName);
 
@@ -203,7 +203,7 @@ namespace UWRL.CIWaterNetServer.Daymet
             inputPrecpDaymetDataFilePath = UEB.UEBSettings.DAYMET_RESOURCE_PRECP_DIR_PATH;
             outNetCDFPrecpDataFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_PRECP_SUB_DIR_PATH);
             outPrecpDataRasterFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_RASTER_OUTPUT_PRECP_SUB_DIR_PATH);
-            watershedFilePath = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
+            watershedFilePath = workingRootDirPath; 
 
             inputWSDEMRasterFile = Path.Combine(watershedFilePath, wsDEMFileName);
             
@@ -369,8 +369,7 @@ namespace UWRL.CIWaterNetServer.Daymet
                 response.Content = new StringContent(errMsg);
                 return response;
             }
-
-
+            
             // check if the python script file exists
             if (!File.Exists(targetPythonScriptFile))
             {
@@ -484,7 +483,7 @@ namespace UWRL.CIWaterNetServer.Daymet
             inputSingleDailyPrecpDataFile = Path.Combine(inputSingleDailyPrecpDataFilePath, UEB.UEBSettings.WATERSHED_SINGLE_PRECP_NETCDF_FILE_NAME);
             outNetCDFMultipleDailyPrecpDataFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_PRECP_SUB_DIR_PATH);
             outNetCDFMultipleDailyPrecpDataFile = Path.Combine(outNetCDFMultipleDailyPrecpDataFilePath, UEB.UEBSettings.WATERSHED_MULTIPLE_PRECP_NETCDF_FILE_NAME);
-            destinationPathForNetCDFMultipleDailyPrecpDataFile = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
+            destinationPathForNetCDFMultipleDailyPrecpDataFile = workingRootDirPath; 
 
             // check if the python script file exists
             if (!File.Exists(targetPythonScriptFile))
@@ -675,7 +674,7 @@ namespace UWRL.CIWaterNetServer.Daymet
             targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "GenerateWatershedDaymetMultipleTempDataPerDay.py");
             inputTempFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_TEMP_SUB_DIR_PATH);
             outNetCDFMultipleDailyTempDataFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_TEMP_SUB_DIR_PATH);
-            destinationPathForNetCDFMultipleDailyTempDataFile = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
+            destinationPathForNetCDFMultipleDailyTempDataFile = workingRootDirPath; 
 
             // check if the python script file exists
             if (!File.Exists(targetPythonScriptFile))
@@ -779,10 +778,10 @@ namespace UWRL.CIWaterNetServer.Daymet
             }
                         
             targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "GenerateWatershedDaymetMultipleRHDataPerDay.py");
-            inputMultipleDailyTaFilePath = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
+            inputMultipleDailyTaFilePath = workingRootDirPath; 
             inputMultipleDailyVpFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_VP_SUB_DIR_PATH);
             outNetCDFMultipleDailyRHDataFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_RH_SUB_DIR_PATH);
-            destinationPathForNetCDFMultipleDailyRHDataFile = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
+            destinationPathForNetCDFMultipleDailyRHDataFile = workingRootDirPath; 
 
             // check if the python script file exists
             if (!File.Exists(targetPythonScriptFile))
@@ -883,7 +882,7 @@ namespace UWRL.CIWaterNetServer.Daymet
             inputMultipleDailyPrecpDataFile = Path.Combine(workingRootDirPath, UEB.UEBSettings.WATERSHED_MULTIPLE_PRECP_NETCDF_FILE_NAME);
             outNetCDFMultipleDailyWindDataFilePath = Path.Combine(workingRootDirPath, UEB.UEBSettings.DAYMET_NETCDF_OUTPUT_WIND_SUB_DIR_PATH);
             outNetCDFMultipleDailyWindDataFile = Path.Combine(outNetCDFMultipleDailyWindDataFilePath, UEB.UEBSettings.WATERSHED_MULTIPLE_WIND_NETCDF_FILE_NAME);
-            destinationPathForNetCDFMultipleDailyWindDataFile = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
+            destinationPathForNetCDFMultipleDailyWindDataFile = workingRootDirPath; 
 
             // check if the python script file exists
             if (!File.Exists(targetPythonScriptFile))

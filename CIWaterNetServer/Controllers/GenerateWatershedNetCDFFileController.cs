@@ -36,12 +36,11 @@ namespace UWRL.CIWaterNetServer.Controllers
             string outputNetCDFFilePath = string.Empty;
             string targetPythonScriptFile = string.Empty;
             string inputBufferedWSRasterFileName = UEB.UEBSettings.WATERSHED_BUFERRED_RASTER_FILE_NAME; 
-            //string inputWSDEMRasterFileName = UEB.UEBSettings.WATERSHED_DEM_RASTER_FILE_NAME; 
             string outputWSNetCDFFileName = UEB.UEBSettings.WATERSHED_NETCDF_FILE_NAME; 
                         
             targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "CreateWatershedNetCDFFile.py");
-            inputWSRasterDirPath = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
-            outputNetCDFFilePath = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
+            inputWSRasterDirPath = workingRootDirPath; 
+            outputNetCDFFilePath = workingRootDirPath; 
 
             // check if the python script file exists
             if (!File.Exists(targetPythonScriptFile))
@@ -69,18 +68,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                 response.Content = new StringContent(errMsg);
                 return response;
             }
-
-            // check if the input buffered watershed DEM raster file exists
-            //string inputWSDEMRasterFile = Path.Combine(inputWSRasterDirPath, inputWSDEMRasterFileName);
-            //if (!File.Exists(inputWSDEMRasterFile))
-            //{
-            //    string errMsg = string.Format("Watershed DEM raster file  ({0}) was not found.", inputWSDEMRasterFile);
-            //    logger.Error(errMsg);
-            //    response.StatusCode = HttpStatusCode.NotFound;
-            //    response.Content = new StringContent(errMsg);
-            //    return response;
-            //}
-                        
+                                                
             //if netcdf file exists then delete it
             string outputWSNetCDFFile = Path.Combine(outputNetCDFFilePath, outputWSNetCDFFileName);
             if (File.Exists(outputWSNetCDFFile))
@@ -93,8 +81,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                 List<string> arguments = new List<string>();
                 arguments.Add(EnvironmentSettings.PythonExecutableFile); 
                 arguments.Add(targetPythonScriptFile);
-                arguments.Add(inputBufferedRasterFile);
-                //arguments.Add(inputWSDEMRasterFile);                
+                arguments.Add(inputBufferedRasterFile);                              
                 arguments.Add(outputWSNetCDFFile);
 
                 // create a string containing all the argument items separated by a space

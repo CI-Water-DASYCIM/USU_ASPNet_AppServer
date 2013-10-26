@@ -6,6 +6,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Web.Http;
 using UWRL.CIWaterNetServer.Helpers;
 
@@ -54,10 +56,12 @@ namespace UWRL.CIWaterNetServer.Controllers
                 response.Content = new StringContent(errMsg);
                 return response;
             }
-
+            
+            //TODO: before doing the following check if the package zip file exists, check that the package status is not still
+            // processing. If it is still processing then return a message accordingle. Only if the package
+            // status is "Complete" then do the following check for zipfile exists or not
             try
-            {
-                //string targetPackageDirPath = Path.Combine(targetPackageRootDirPath, packageID);
+            {                
                 string zipUEBPackageFile = Path.Combine(targetPackageDirPath, packageZipFileName);
 
                  // make sure the package zip file exists
@@ -67,42 +71,10 @@ namespace UWRL.CIWaterNetServer.Controllers
                     logger.Error(errMsg);
                     return Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);
                 }
-                
-                // load the zip file to memory
-                //MemoryStream ms = new MemoryStream();
-
-                //using (FileStream file = new FileStream(zipUEBPackageFile, FileMode.Open, FileAccess.Read)) 
-                //{
-                //    file.CopyTo(ms); // this causes memory error for large package file and hence the whole using block was commented out
-                //    file.Close();
-                //    if (file.Length == 0)
-                //    {
-                //        string errMsg = "No package zip file was found.";
-                //        logger.Error(errMsg);
-                //        response = Request.CreateErrorResponse(HttpStatusCode.NotFound, errMsg);
-                //        return response;
-                //    }
-                //    response.StatusCode = HttpStatusCode.OK;
-                //    ms.Position = 0; 
-                //    response.Content = new StreamContent(ms);
-                //    response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-                //    response.Content.Headers.ContentLength = file.Length;
-                //    // Ref: http://weblogs.asp.net/cibrax/archive/2011/04/25/implementing-caching-in-your-wcf-web-apis.aspx
-                //    // set the browser to cache this response for 120 secs only
-                //    response.Content.Headers.Expires = DateTime.Now.AddSeconds(120);
-                //    response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue("attachment")
-                //    {
-                //        FileName = packageZipFileName
-                //    };
-
-                //    logger.Info(string.Format("UEB package zip file for PackageID: {0} was sent to the client.", packageID));
-                //}
-
-                // New code replaced the old code above to avoid out of memory exception in case of large package zip file
+                                
                 FileStream fileStream = File.Open(zipUEBPackageFile, FileMode.Open, FileAccess.Read);
                 response.StatusCode = HttpStatusCode.OK;
-                //file.Position = 0; //ms.Position = 0
-                response.Content = new StreamContent(fileStream); //ms
+                response.Content = new StreamContent(fileStream); 
                 response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
                 response.Content.Headers.ContentLength = fileStream.Length;
                 // Ref: http://weblogs.asp.net/cibrax/archive/2011/04/25/implementing-caching-in-your-wcf-web-apis.aspx
@@ -114,14 +86,26 @@ namespace UWRL.CIWaterNetServer.Controllers
                 };
                                 
                 logger.Info(string.Format("UEB package zip file for PackageID: {0} was sent to the client.", packageID));
-                // end of new code
-
-                // once the client gets the package delete the package dir
-                // make sure unintentaionally we are not deleting any necessary folder
-                if (targetPackageRootDirPath.Contains(packageID))
+                                             
+                // delete temporary working folder used for creating ueb model package
+                Task deleteTask = new Task(() =>
                 {
-                    //Directory.Delete(targetPackageRootDirPath, true);
-                }
+                    // the zip file may be locked untl the client finish reading the 
+                    // data from the file stream object
+                    while (FileManager.IsFileLocked(new FileInfo(zipUEBPackageFile)))
+                    {
+                        // wait a second
+                        Thread.Sleep(TimeSpan.FromSeconds(1));
+                    }
+                                        
+                    if (Directory.Exists(targetPackageRootDirPath))
+                    {
+                        Directory.Delete(targetPackageRootDirPath, true);
+                        logger.Info(string.Format("UEB build package temporary folder: {0} was deleted.", targetPackageRootDirPath));
+                    }
+                });
+
+                deleteTask.Start();
                 
             }
             catch (Exception ex)

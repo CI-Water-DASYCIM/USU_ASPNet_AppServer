@@ -14,13 +14,7 @@ namespace UWRL.CIWaterNetServer.Controllers
     public class GenerateBufferedWatershedFilesController : ApiController
     {
         private static Logger logger = LogManager.GetCurrentClassLogger();
-
-        //public HttpResponseMessage GetBufferedWatershedFiles()
-        //{
-        //    string workingRootDirPath = Guid.NewGuid().ToString();
-        //    return CreateBufferedWatershedFiles(workingRootDirPath);
-        //}
-
+                
         public HttpResponseMessage GetBufferedWatershedFiles(string workingRootDirPath, int watershedBufferSize)
         {
             return CreateBufferedWatershedFiles(workingRootDirPath, watershedBufferSize);
@@ -44,8 +38,8 @@ namespace UWRL.CIWaterNetServer.Controllers
             string outputBufferedWSRasterFileName = UEB.UEBSettings.WATERSHED_BUFERRED_RASTER_FILE_NAME; 
                         
             targetPythonScriptFile = Path.Combine(UEB.UEBSettings.PYTHON_SCRIPT_DIR_PATH, "CreateBufferedWatershedFiles.py");
-            inputShapeFilePath = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
-            outputWatershedFilePath = workingRootDirPath; // UEB.UEBSettings.WORKING_DIR_PATH;
+            inputShapeFilePath = workingRootDirPath; 
+            outputWatershedFilePath = workingRootDirPath; 
             inputReferenceDEMFile = Path.Combine(UEB.UEBSettings.DEM_RESOURCE_DIR_PATH, UEB.UEBSettings.DEM_RESOURCE_FILE_NAME);
 
             // check if the python script file exists

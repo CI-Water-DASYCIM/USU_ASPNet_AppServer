@@ -164,6 +164,7 @@
     <Compile Include="App_Start\WebApiConfig.cs" />
     <Compile Include="Controllers\CheckTaskStatusController.cs" />
     <Compile Include="Controllers\CheckUEBPackageBuildStatusController.cs" />
+    <Compile Include="Controllers\CheckUEBRunStatusController.cs" />
     <Compile Include="Controllers\ComputeWatershedAtmosphericPressureController.cs" />
     <Compile Include="Controllers\CreateWatershedDEMFileController.cs" />
     <Compile Include="Controllers\EPADelineateController.cs" />
@@ -176,14 +177,19 @@
     <Compile Include="Controllers\GenerateWatershedSlopeNetCdfFileController.cs" />
     <Compile Include="Controllers\GetUEBPackageController.cs" />
     <Compile Include="Controllers\GetUEBPackageCreateRequestJSONFormatController.cs" />
+    <Compile Include="Controllers\RunUEBController.cs" />
     <Compile Include="Controllers\ShapeLatLonValuesController.cs" />
     <Compile Include="Controllers\GenerateWatershedNetCDFFileController.cs" />
     <Compile Include="Controllers\TestCallFromDrupalController.cs" />
     <Compile Include="Controllers\TestUEBConfigSettingsController.cs" />
+    <Compile Include="Controllers\UEBModelRunOutputController.cs" />
     <Compile Include="Daymet\DataProcessor.cs" />
     <Compile Include="Helpers\EnvironmentSettings.cs" />
     <Compile Include="Helpers\EventLogger.cs" />
+    <Compile Include="Helpers\FileManager.cs" />
+    <Compile Include="Helpers\PackageBuildStatus.cs" />
     <Compile Include="Helpers\TaskDataStore.cs" />
+    <Compile Include="Helpers\UebRunStatus.cs" />
     <Compile Include="Models\EPAWebServiceHelper.cs" />
     <Compile Include="Controllers\HomeController.cs" />
     <Compile Include="Controllers\ValuesController.cs" />

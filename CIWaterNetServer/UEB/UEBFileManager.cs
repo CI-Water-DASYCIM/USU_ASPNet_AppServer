@@ -153,7 +153,7 @@ namespace UWRL.CIWaterNetServer.UEB
                 sw.WriteLine("wlf: Low frequency fluctuation in deep snow/soil layer ");
                 sw.WriteLine("0.0654"); //default value, later need to get this value form a user uploaded moddel param input file
 
-                sw.WriteLine("rdl: Amplitude correction coefficient of heat conduction (1)");
+                sw.WriteLine("rd1: Amplitude correction coefficient of heat conduction (1)");
                 sw.WriteLine("1"); //default value, later need to get this value form a user uploaded moddel param input file
 
                 sw.WriteLine("dnews: The threshold depth of for new snow (0.001 m)");
@@ -162,11 +162,11 @@ namespace UWRL.CIWaterNetServer.UEB
                 sw.WriteLine("emc: Emissivity of canopy");
                 sw.WriteLine("0.98"); //default value, later need to get this value form a user uploaded moddel param input file
 
-                sw.WriteLine("fstab: Stability correction control parameter 0 = no corrections");
-                sw.WriteLine("1.0"); //default value, later need to get this value form a user uploaded moddel param input file
+                //sw.WriteLine("fstab: Stability correction control parameter 0 = no corrections");
+                //sw.WriteLine("1.0"); //default value, later need to get this value form a user uploaded moddel param input file
 
-                sw.WriteLine("tref: Reference temperature of soil layer in ground heat calculation input");
-                sw.WriteLine("-0.45"); //default value, later need to get this value form a user uploaded moddel param input file
+                //sw.WriteLine("tref: Reference temperature of soil layer in ground heat calculation input");
+                //sw.WriteLine("-0.45"); //default value, later need to get this value form a user uploaded moddel param input file
                 
                 sw.WriteLine("alpha: Scattering coefficient for solar radiation");
                 sw.WriteLine("0.5"); //default value, later need to get this value form a user uploaded moddel param input file
@@ -177,7 +177,7 @@ namespace UWRL.CIWaterNetServer.UEB
                 sw.WriteLine("g: leaf orientation with respect to zenith angle");
                 sw.WriteLine("0.5"); //default value, later need to get this value form a user uploaded moddel param input file
 
-                sw.WriteLine("uc: leaf orientation with respect to zenith angle");
+                sw.WriteLine("uc: Unloading rate coefficient (Per hour) (Hedstrom and Pomeroy, 1998)");
                 sw.WriteLine("0.004626286"); //default value, later need to get this value form a user uploaded moddel param input file
 
                 sw.WriteLine("as: Fraction of extraterrestrial radiation on cloudy day, Shuttleworth (1993)");
@@ -243,7 +243,6 @@ namespace UWRL.CIWaterNetServer.UEB
                     sw.WriteLine(uebPkgRequest.SiteInitialConditions.usic_grid_file_name + ";" + uebPkgRequest.SiteInitialConditions.usic_grid_file_format); 
                 }
                
-
                 sw.WriteLine("WSis: Snow water equivalent initial condition (m)");
                 if (uebPkgRequest.SiteInitialConditions.is_wsis_constant)
                 {
@@ -256,7 +255,7 @@ namespace UWRL.CIWaterNetServer.UEB
                     sw.WriteLine(uebPkgRequest.SiteInitialConditions.wsis_grid_file_name + ";" + uebPkgRequest.SiteInitialConditions.wsis_grid_file_format);
                 }
 
-                sw.WriteLine("Tic: Canopy Snow Water Equivalent (m) relative to T = 0 C solid phase");
+                sw.WriteLine("Tic: Surface dimensionless age initial condition");
                 if (uebPkgRequest.SiteInitialConditions.is_tic_constant)
                 {
                     sw.WriteLine("0"); // variable flag value for SCTC type variable                    
@@ -632,9 +631,9 @@ namespace UWRL.CIWaterNetServer.UEB
             using (StreamWriter sw = new StreamWriter(fileToWriteTo))
             {
                 sw.WriteLine("Input Control file");
-                string dateFormat = "yyyy MM dd hh:mm";                
-                sw.WriteLine(startDate.ToString(dateFormat)); // yyyy mm dd hh.hh (starting Date)
-                sw.WriteLine(endDate.ToString(dateFormat)); // yyyy mm dd hh.hh (ending Date)
+                string dateFormat = "yyyy MM dd hh.mm";                
+                sw.WriteLine(startDate.ToString(dateFormat)); // yyyy mm dd hh.mm (starting Date)
+                sw.WriteLine(endDate.ToString(dateFormat)); // yyyy mm dd hh.mm (ending Date)
                 sw.WriteLine(timeStep); // time step
                 
                 //TODO: Check how can we avoid hard coding this UTC time offset value
@@ -644,7 +643,7 @@ namespace UWRL.CIWaterNetServer.UEB
                 if (uebPkgRequest.TimeSeriesInputs.is_ta_compute)
                 {
                     sw.WriteLine("1"); // variable flag value for SCTC type variable
-                    sw.WriteLine("Talist.dat;X:x;Y:y;time:time;D:T"); // this is the new format suggested by Tseganeh
+                    sw.WriteLine("Talist.dat;X:x;Y:y;time:time;D:T;range:-20,40"); // this is the new format suggested by Tseganeh
                     timeSeriesFiles.TaFileName = "Talist.dat";
                 }
                 else if(uebPkgRequest.TimeSeriesInputs.is_ta_constant)
@@ -655,7 +654,7 @@ namespace UWRL.CIWaterNetServer.UEB
                 else if (uebPkgRequest.TimeSeriesInputs.ta_grid_file_name.EndsWith(".nc"))
                 {
                     sw.WriteLine("1"); // variable flag value for SCTC type variable
-                    sw.WriteLine("Talist.dat;" + uebPkgRequest.TimeSeriesInputs.ta_grid_file_format);
+                    sw.WriteLine("Talist.dat;" + uebPkgRequest.TimeSeriesInputs.ta_grid_file_format + ";range:-20,40");
                     timeSeriesFiles.TaFileName = "Talist.dat";
                 }
                 else if(string.IsNullOrEmpty(uebPkgRequest.TimeSeriesInputs.ta_text_file_name) == false)

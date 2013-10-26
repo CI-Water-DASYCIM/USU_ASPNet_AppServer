@@ -57,12 +57,15 @@ namespace UWRL.CIWaterNetServer.Python
                 throw new Exception(errors);
             }
         }
+
         // Executes a shell command synchronously.
         // Example of command parameter value is
         // "python " + @"C:\scripts\geom_input.py".
         //
         public static void ExecuteCommand(object command)
         {
+            System.Diagnostics.Process proc = null;
+
             try
             {
                 // Create the ProcessStartInfo using "cmd" as the program to be run,
@@ -73,16 +76,16 @@ namespace UWRL.CIWaterNetServer.Python
                     System.Diagnostics.ProcessStartInfo("cmd", "/c " + command);
 
                 // The following commands are needed to redirect the standard output.
-                // This means that it will be redirected to the Process.StandardOutput StreamReader.
+                // redirect to the Process.StandardOutput StreamReader.
                 procStartInfo.RedirectStandardOutput = true;
                 procStartInfo.RedirectStandardError = true;
-                procStartInfo.UseShellExecute = false;
+                procStartInfo.UseShellExecute = false; 
 
                 // Do not create the black window.
-                procStartInfo.CreateNoWindow = false;
+                procStartInfo.CreateNoWindow = true;
 
                 // Now you create a process, assign its ProcessStartInfo, and start it.
-                System.Diagnostics.Process proc = new System.Diagnostics.Process();
+                proc = new System.Diagnostics.Process();
                 proc.StartInfo = procStartInfo;
                 proc.Start();
                 
@@ -90,6 +93,8 @@ namespace UWRL.CIWaterNetServer.Python
                 string result = proc.StandardOutput.ReadToEnd();
                 string errors = proc.StandardError.ReadToEnd();
 
+                int pythonExitCode = proc.ExitCode;
+                
                 if (result.Contains("Exception"))
                 {
                     logger.Fatal(result);
@@ -106,14 +111,19 @@ namespace UWRL.CIWaterNetServer.Python
                 {
                     logger.Fatal(errors);
                     throw new Exception(errors);
-                }
-                // Display the command output.
-                Console.WriteLine(result);
+                }                
             }
             catch (Exception ex)
             {
                 logger.Fatal(ex.Message);
-                throw new Exception(ex.Message);                
+                throw new Exception(ex.Message);
+            }
+            finally
+            {
+                if (proc != null)
+                {
+                    proc.Close();
+                }
             }
         }
     }

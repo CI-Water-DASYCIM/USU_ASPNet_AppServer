@@ -29,15 +29,7 @@ namespace UWRL.CIWaterNetServer.Controllers
         private string _packageZipFileName = UEB.UEBSettings.UEB_PACKAGE_FILE_NAME; // "UEBPackage.zip";
         private string _clientPackageRequestDirPath = string.Empty;
         private string _packageRequestProcessRootDirPath = string.Empty;
-               
-        //This one to test if we can create the pacakge zip file
-        //This method assumes that all files need to be zipped are at the _sourceFilePath
-        //public HttpResponseMessage GetUEBPackage(string test)
-        //{
-        //    return CreateUEBpackageZipFile("123");
-
-        //}
-
+        
         /// <summary>
         /// Creates UEB model package
         /// <remarks>
@@ -133,7 +125,7 @@ namespace UWRL.CIWaterNetServer.Controllers
             }
 
             // check if the client request is valid
-            string validationResult = ValidateUEBPakageRequest(pkgRequest);
+            string validationResult = ValidateUEBPackageRequest(pkgRequest);
             if (string.IsNullOrEmpty(validationResult) == false)
             {
                 logger.Error(validationResult);
@@ -340,7 +332,12 @@ namespace UWRL.CIWaterNetServer.Controllers
 
                     if (tokenSource.IsCancellationRequested == false)
                     {
-                        CreateUEBpackageZipFile(jobGuid.ToString(), startDate, endDate, timeStep, null);
+                        response = CreateUEBpackageZipFile(jobGuid.ToString(), startDate, endDate, timeStep, null);
+
+                        if (response.StatusCode != HttpStatusCode.OK)
+                        {
+                            tokenSource.Cancel();
+                        }
                     }
                     
                 }, tokenSource.Token);
@@ -387,7 +384,7 @@ namespace UWRL.CIWaterNetServer.Controllers
             }
 
             PackageCreationStatus pkgStatus = new PackageCreationStatus();
-            pkgStatus.Message = "UEB package creation has started. When done you will be notified.";
+            pkgStatus.Message = "UEB package creation has started for job id:" + jobGuid;
             pkgStatus.PackageID = jobGuid.ToString();
             string jsonResponse = JsonConvert.SerializeObject(pkgStatus, Formatting.Indented);
             response.StatusCode = HttpStatusCode.OK;
@@ -1032,18 +1029,21 @@ namespace UWRL.CIWaterNetServer.Controllers
                     if (response.StatusCode != HttpStatusCode.OK)
                     {
                         tokenSource.Cancel();
+                        logger.Error("Python script to generate buffered watershed shape files seems to have failed for job id:" + jobGuid.ToString());
                     }
 
                     response = GenerateWatershedDEMFile(cancellationToken, uebPkgRequest.GridCellSize);
                     if (response.StatusCode != HttpStatusCode.OK)
                     {
                         tokenSource.Cancel();
+                        logger.Error("Python script to generate watershed DEM file seems to have failed for job id:" + jobGuid.ToString());
                     }
 
                     response = GenerateWatershedNetCDFFile(cancellationToken);
                     if (response.StatusCode != HttpStatusCode.OK)
                     {
                         tokenSource.Cancel();
+                        logger.Error("Python script to generate waterhsed netcdf domain file seems to have failed for job id:" + jobGuid.ToString());
                     }
                     
                     if (uebPkgRequest.SiteInitialConditions.is_apr_derive_from_elevation)
@@ -1052,6 +1052,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                         if (response.StatusCode != HttpStatusCode.OK)
                         {
                             tokenSource.Cancel();
+                            logger.Error("Python script to generate atmospheric pressure netcdf file seems to have failed for job id:" + jobGuid.ToString());
                         }
                     }                   
 
@@ -1059,30 +1060,35 @@ namespace UWRL.CIWaterNetServer.Controllers
                     if (response.StatusCode != HttpStatusCode.OK)
                     {
                         tokenSource.Cancel();
+                        logger.Error("Python script to generate Slope netcdf file seems to have failed for job id:" + jobGuid.ToString());
                     }
 
                     response = GetWatershedAspectNetCDFFile(cancellationToken);
                     if (response.StatusCode != HttpStatusCode.OK)
                     {
                         tokenSource.Cancel();
+                        logger.Error("Python script to generate Aspect netcdf file seems to have failed for job id:" + jobGuid.ToString());
                     }
 
                     response = GetWatershedLatLonValues(cancellationToken);
                     if (response.StatusCode != HttpStatusCode.OK)
                     {
                         tokenSource.Cancel();
+                        logger.Error("Python script to generate Lat/Lon data points netcdf file seems to have failed for job id:" + jobGuid.ToString());
                     }
 
                     response = GetWatershedLandCoverData(cancellationToken);
                     if (response.StatusCode != HttpStatusCode.OK)
                     {
                         tokenSource.Cancel();
+                        logger.Error("Python script to generate land cover data seems to have failed for job id:" + jobGuid.ToString());
                     }
 
                     response = GetWatershedLandCoverVariablesData(cancellationToken);
                     if (response.StatusCode != HttpStatusCode.OK)
                     {
                         tokenSource.Cancel();
+                        logger.Error("Python script to generate land cover variables data points netcdf file seems to have failed for job id:" + jobGuid.ToString());
                     }
 
                     string outputTminDataVarName = UEB.UEBSettings.WATERSHED_SINGLE_TEMP_MIN_NETCDF_VARIABLE_NAME; // "tmin";
@@ -1091,6 +1097,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                     if (daymetResponse.StatusCode != ResponseStatus.OK)
                     {
                         tokenSource.Cancel();
+                        logger.Error("Python script to generate single Temp Min data points per day netcdf file seems to have failed for job id:" + jobGuid.ToString());
                     }
 
                     string outputTmaxDataVarName = UEB.UEBSettings.WATERSHED_SINGLE_TEMP_MAX_NETCDF_VARIABLE_NAME; ; // "tmax";
@@ -1099,12 +1106,14 @@ namespace UWRL.CIWaterNetServer.Controllers
                     if (daymetResponse.StatusCode != ResponseStatus.OK)
                     {
                         tokenSource.Cancel();
+                        logger.Error("Python script to generate single Temp Max data points per day netcdf file seems to have failed for job id:" + jobGuid.ToString());
                     }
 
                     daymetResponse = DataProcessor.GetWatershedMultipleTempDataPointsNetCDFFile(cancellationToken, uebPkgRequest.TimeStep, _packageRequestProcessRootDirPath, uebPkgRequest.StartDate);
                     if (daymetResponse.StatusCode != ResponseStatus.OK)
                     {
                         tokenSource.Cancel();
+                        logger.Error("Python script to generate multiple Temp data points per day netcdf file seems to have failed for job id:" + jobGuid.ToString());
                     }
 
                     string inputDaymetVpFileNamePattern = UEB.UEBSettings.DAYMET_RESOURCE_VP_FILE_NAME_PATTERN; // "vp*.nc";
@@ -1112,12 +1121,14 @@ namespace UWRL.CIWaterNetServer.Controllers
                     if (daymetResponse.StatusCode != ResponseStatus.OK)
                     {
                         tokenSource.Cancel();
+                        logger.Error("Python script to generate single VP data points per day netcdf file seems to have failed for job id:" + jobGuid.ToString());
                     }
 
                     daymetResponse = DataProcessor.GetWatershedMultipleVaporPresDataPointsNetCDFFile(cancellationToken, uebPkgRequest.TimeStep, _packageRequestProcessRootDirPath, uebPkgRequest.StartDate);
                     if (daymetResponse.StatusCode != ResponseStatus.OK)
                     {
                         tokenSource.Cancel();
+                        logger.Error("Python script to generate multiple VP data points per day netcdf file seems to have failed for job id:" + jobGuid.ToString());
                     }
 
                     string inputDaymetPrcpFileNamePattern = UEB.UEBSettings.DAYMET_RESOURCE_PRECP_FILE_NAME_PATTERN; // "prcp*.nc";
@@ -1125,34 +1136,41 @@ namespace UWRL.CIWaterNetServer.Controllers
                     if (daymetResponse.StatusCode != ResponseStatus.OK)
                     {
                         tokenSource.Cancel();
+                        logger.Error("Python script to generate single  Prec data points per day netcdf file seems to have failed for job id:" + jobGuid.ToString());
                     }
 
                     daymetResponse = DataProcessor.GetWatershedMultiplePrecpDataPointsNetCDFFile(cancellationToken, uebPkgRequest.TimeStep, _packageRequestProcessRootDirPath, uebPkgRequest.StartDate);
                     if (daymetResponse.StatusCode != ResponseStatus.OK)
                     {
                         tokenSource.Cancel();
+                        logger.Error("Python script to generate multiple Prec data points per day netcdf file seems to have failed for job id:" + jobGuid.ToString());
                     }
 
                     daymetResponse = DataProcessor.GetWatershedMultipleWindDataPointsNetCDFFile(cancellationToken, constantWindSpeed, _packageRequestProcessRootDirPath);
                     if (daymetResponse.StatusCode != ResponseStatus.OK)
                     {
                         tokenSource.Cancel();
+                        logger.Error("Python script to generate multiple Wind data points per day netcdf file seems to have failed for job id:" + jobGuid.ToString());
                     }
 
                     daymetResponse = DataProcessor.GetWatershedMultipleRHDataPointsNetCDFFile(cancellationToken, uebPkgRequest.TimeStep, _packageRequestProcessRootDirPath);
                     if (daymetResponse.StatusCode != ResponseStatus.OK)
                     {
                         tokenSource.Cancel();
-                        logger.Error("Python script to generate multiple RH data points per day netcdf file seems to have failed.");
+                        logger.Error("Python script to generate multiple RH data points per day netcdf file seems to have failed for job id:" + jobGuid.ToString());
                     }
 
                     if (tokenSource.IsCancellationRequested == false)
                     {
-                        CreateUEBpackageZipFile(jobGuid.ToString(), uebPkgRequest.StartDate, uebPkgRequest.EndDate, uebPkgRequest.TimeStep, uebPkgRequest);
+                        response = CreateUEBpackageZipFile(jobGuid.ToString(), uebPkgRequest.StartDate, uebPkgRequest.EndDate, uebPkgRequest.TimeStep, uebPkgRequest);
+                        if (response.StatusCode != HttpStatusCode.OK)
+                        {
+                            tokenSource.Cancel();
+                        }
                     }
                     else
                     {
-                        logger.Error("One of the python scripts execution got cancelled. No package is created.");
+                        logger.Error("One of the python scripts execution got cancelled due to execution error. No package was created for job id:" + jobGuid.ToString());
                     }
 
                 }, tokenSource.Token);
@@ -1165,8 +1183,8 @@ namespace UWRL.CIWaterNetServer.Controllers
                     if (mainTask.IsCanceled || mainTask.IsFaulted || tokenSource.IsCancellationRequested)
                     {
                         CleanUpOnFailure();
-                        string errMsg = "UEB pacakage could not be created.";
-                        logger.Info(errMsg);
+                        string errMsg = "UEB pacakage could not be created for job id:" + jobGuid.ToString();
+                        logger.Error(errMsg);
                         UpdatePackageBuildStatusFile(PackageBuildStatus.Error);
                         CleanupUEBPackageRequestData();
                     }
@@ -1174,7 +1192,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                     {
                         HttpResponseMessage mainTaskResponse = new HttpResponseMessage();
                         mainTaskResponse.StatusCode = HttpStatusCode.OK;
-                        mainTaskResponse.Content = new StringContent("UEB package creation is complete for job id:" + jobGuid);
+                        mainTaskResponse.Content = new StringContent("UEB package creation is complete for job id:" + jobGuid.ToString());
                         Helpers.TaskDataStore.SetTaskResult(jobGuid.ToString(), mainTaskResponse);
                         logger.Info(mainTaskResponse.Content.ToString());
                         UpdatePackageBuildStatusFile(PackageBuildStatus.Complete);
@@ -1186,16 +1204,16 @@ namespace UWRL.CIWaterNetServer.Controllers
             {
                 HttpResponseMessage mainTaskResponse = new HttpResponseMessage();
                 mainTaskResponse.StatusCode = HttpStatusCode.Forbidden;
-                mainTaskResponse.Content = new StringContent("UEB package creation was unscuccessful for job id:" + jobGuid + "\n" + ex.Message);
+                mainTaskResponse.Content = new StringContent("UEB package creation was unsuccessful for job id:" + jobGuid.ToString() + "\n" + ex.Message);
                 Helpers.TaskDataStore.SetTaskResult(jobGuid.ToString(), mainTaskResponse);
-                logger.Info(mainTaskResponse.Content.ToString());
+                logger.Error(mainTaskResponse.Content.ToString());
                 UpdatePackageBuildStatusFile(PackageBuildStatus.Error);
                 CleanUpOnFailure();
                 CleanupUEBPackageRequestData();
             }
         }
 
-        private string ValidateUEBPakageRequest(UEBPackageRequest uebPkgRequest)
+        private string ValidateUEBPackageRequest(UEBPackageRequest uebPkgRequest)
         {            
             bool isInputError = false;
 
@@ -1440,7 +1458,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                 return response;                
             }
 
-            string msg = "UEB package creation was successful.";
+            string msg = "UEB package creation was successful for job id:" + packageID;
             logger.Info(msg);
             response.StatusCode = HttpStatusCode.OK;
             response.Content = new StringContent(msg);
@@ -1559,12 +1577,6 @@ namespace UWRL.CIWaterNetServer.Controllers
     {
         public string Message { get; set; }
         public string PackageID { get; set; }
-    }
+    }   
     
-    public static class PackageBuildStatus
-    {
-        public static string Processing = "Processing";
-        public static string Complete = "Complete";
-        public static string Error = "Package build failed";
-    }
 }
