@@ -10,25 +10,29 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
+using UWRL.CIWaterNetServer.DAL;
 using UWRL.CIWaterNetServer.Helpers;
+using UWRL.CIWaterNetServer.Models;
 
 
 namespace UWRL.CIWaterNetServer.Controllers
 {
     public class RunUEBController : ApiController
     {
-
         private static Logger logger = LogManager.GetCurrentClassLogger();
-
+        
         public HttpResponseMessage PostRunUEB()
         {
             HttpResponseMessage response = new HttpResponseMessage();
+            ServiceContext db = new ServiceContext();
+
             string modelRunRootPath = string.Empty;
             string uebInputPackageZipFileName = "ueb_input_package.zip";
             string uebInputPackageZipFile = string.Empty;
             string uebExecutableFilesPath = string.Empty;
             string uebExecutionControlFileName = UEB.UEBSettings.UEB_EXECUTION_CONTROL_FILE_NAME;
             string msg = string.Empty;
+            ServiceLog serviceLog = null;
 
             // get the ueb model package zip file from the request
             Stream uebPackageZipFileFromClient = null;
@@ -70,6 +74,22 @@ namespace UWRL.CIWaterNetServer.Controllers
 
             try
             {
+                var service = db.Services.First(s => s.APIName == "RunUEBController.PostRunUEB");
+                                
+                serviceLog = new ServiceLog
+                {
+                    JobID = jobGuid.ToString(),
+                    ServiceID = service.ServiceID,
+                    CallTime = DateTime.Now,
+                    StartTime = DateTime.Now,
+                    RunStatus = RunStatus.Processing
+                };
+
+                db.ServiceLogs.Add(serviceLog);
+                db.SaveChanges();
+
+                serviceLog = db.ServiceLogs.First(s => s.JobID == serviceLog.JobID);
+
                 // save the recieved package file locally for ueb to use
                 using (var fileStream = File.Create(uebInputPackageZipFile))
                 {
@@ -81,14 +101,18 @@ namespace UWRL.CIWaterNetServer.Controllers
             }
             catch (Exception ex)
             {
+                serviceLog.RunStatus = RunStatus.Error;
+                serviceLog.FinishTime = DateTime.Now;
+                serviceLog.Error = ex.Message;
+                db.SaveChanges();
+
                 logger.Fatal(ex.Message);
                 return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message);
             }
 
             // unzip the request zip file
             ZipFile.ExtractToDirectory(uebInputPackageZipFile, modelRunRootPath);
-            //File.Delete(uebInputPackageZipFile);
-
+            
             // copy the UEB executables and dlls to model run folder
             uebExecutableFilesPath = UEB.UEBSettings.UEB_EXECUTABLE_DIR_PATH;
             string[] files = Directory.GetFiles(uebExecutableFilesPath);
@@ -107,8 +131,7 @@ namespace UWRL.CIWaterNetServer.Controllers
 
             //Run ueb in async mode
             RunUEB(modelRunRootPath, uebInputPackageZipFile, jobGuid.ToString());
-            UpdateUEBRunStatusFile(modelRunRootPath, UebRunStatus.Processing);
-
+            
             UebRunStatusResponse uebRunStatus = new UebRunStatusResponse();
             uebRunStatus.Message = "UEB execution has started.";
             uebRunStatus.RunJobID = jobGuid.ToString();
@@ -120,6 +143,9 @@ namespace UWRL.CIWaterNetServer.Controllers
 
         private void RunUEB(string modelRunRootPath, string uebInputPackageZipFile, string runJobID)
         {
+            ServiceContext db = new ServiceContext();
+            ServiceLog serviceLog = db.ServiceLogs.First(s => s.JobID == runJobID);
+
             try
             {
                 Task uebRunTask = new Task(() =>
@@ -162,13 +188,17 @@ namespace UWRL.CIWaterNetServer.Controllers
                    
                     logger.Info(string.Format("Ending UEB run for job ID: {0}.", runJobID));
 
-                    if (result.Contains("successfully performed") == false)
+                    if (result.Contains("successfully performed") == false || result.Length == 0)
                     {
                         string errMsg = string.Format("UEB run failed for job ID:{0}.", runJobID);
                         logger.Error(errMsg);
                         logger.Error(errors);
                         logger.Error(result);
-                        UpdateUEBRunStatusFile(modelRunRootPath, UebRunStatus.Failed);
+
+                        serviceLog.RunStatus = RunStatus.Error;
+                        serviceLog.FinishTime = DateTime.Now;
+                        serviceLog.Error = errors;
+                        db.SaveChanges();                        
                     }
                     else
                     {
@@ -181,7 +211,10 @@ namespace UWRL.CIWaterNetServer.Controllers
                         ZipFile.CreateFromDirectory(modelOutputPath, modelOutputZipFile);                        
                         msg = string.Format("UEB run output zip file was created for UEB run job ID:{0}", runJobID);
                         logger.Info(msg);
-                        UpdateUEBRunStatusFile(modelRunRootPath, UebRunStatus.Complete);
+
+                        serviceLog.RunStatus = RunStatus.Success;
+                        serviceLog.FinishTime = DateTime.Now;                        
+                        db.SaveChanges();                        
                     }
                 });
 
@@ -192,10 +225,14 @@ namespace UWRL.CIWaterNetServer.Controllers
                 string errMsg = string.Format("UEB run failed for job ID:{0}.", runJobID);
                 logger.Error(errMsg);
                 logger.Error(ex.Message);
-                UpdateUEBRunStatusFile(modelRunRootPath, UebRunStatus.Failed);
+                serviceLog.RunStatus = RunStatus.Error;
+                serviceLog.FinishTime = DateTime.Now;
+                serviceLog.Error = ex.Message;
+                db.SaveChanges();               
             }
         }
 
+        // TODO: This is no more used -need to be deleted
         private void UpdateUEBRunStatusFile(string modelRunRootPath, string uebRunStatus)
         {
             string fileName = UEB.UEBSettings.UEB_RUN_STATUS_FILE_NAME;

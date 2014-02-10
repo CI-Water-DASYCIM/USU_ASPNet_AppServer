@@ -9,7 +9,9 @@ using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
+using UWRL.CIWaterNetServer.DAL;
 using UWRL.CIWaterNetServer.Helpers;
+using UWRL.CIWaterNetServer.Models;
 
 namespace UWRL.CIWaterNetServer.Controllers
 {
@@ -27,6 +29,8 @@ namespace UWRL.CIWaterNetServer.Controllers
         {
             HttpResponseMessage response = new HttpResponseMessage();
 
+            ServiceContext db = new ServiceContext();
+
             string targetPackageRootDirPath = Path.Combine(UEB.UEBSettings.WORKING_DIR_PATH, packageID);
             string targetPackageDirPath = Path.Combine(targetPackageRootDirPath, UEB.UEBSettings.PACKAGE_OUTPUT_SUB_DIR_PATH);                
             string packageZipFileName = UEB.UEBSettings.UEB_PACKAGE_FILE_NAME;
@@ -38,8 +42,10 @@ namespace UWRL.CIWaterNetServer.Controllers
                 response.Content = new StringContent(errMsg);
                 return response;
             }
-                                                
-            if (Directory.Exists(targetPackageRootDirPath) == false)
+
+            ServiceLog serviceLog = db.ServiceLogs.FirstOrDefault(sl => sl.JobID == packageID);
+
+            if (serviceLog == null)
             {
                 string errMsg = string.Format("No UEB package build request was found for the provided package ID: {0}.", packageID);
                 logger.Error(errMsg);
@@ -47,19 +53,48 @@ namespace UWRL.CIWaterNetServer.Controllers
                 response.Content = new StringContent(errMsg);
                 return response;
             }
-
-            if (Directory.Exists(targetPackageDirPath) == false)
+                        
+            if (serviceLog.RunStatus != RunStatus.Success)
             {
-                string errMsg = string.Format("No UEB package was found for the provided package ID: {0}.", packageID);
+                string errMsg = string.Empty;
+
+                if (serviceLog.RunStatus == RunStatus.InQueue)
+                {
+                    errMsg = string.Format("UEB package build request still in a queue to be processed for package ID: {0}.", packageID);                    
+                }
+                else if (serviceLog.RunStatus == RunStatus.Processing)
+                {
+                    errMsg = string.Format("UEB package build request is currently being processed for package ID: {0}.", packageID);
+                }
+                else if (serviceLog.RunStatus == RunStatus.Error)
+                {
+                    errMsg = string.Format("UEB package build request failed processing for package ID: {0}.", packageID);
+                }
+
                 logger.Error(errMsg);
                 response.StatusCode = HttpStatusCode.NotFound;
                 response.Content = new StringContent(errMsg);
                 return response;
             }
-            
-            //TODO: before doing the following check if the package zip file exists, check that the package status is not still
-            // processing. If it is still processing then return a message accordingle. Only if the package
-            // status is "Complete" then do the following check for zipfile exists or not
+
+            if (Directory.Exists(targetPackageRootDirPath) == false) // if the folder doesnot exist at this point, it means package has been already sent to client in the past
+            {
+                string errMsg = string.Format("UEB model package data no more available for the provided package ID: {0}.", packageID);
+                logger.Error(errMsg);
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.Content = new StringContent(errMsg);
+                return response;
+            }
+
+            if (Directory.Exists(targetPackageDirPath) == false) // if the folder doesnot exist at this point, we got the logic wrong
+            {
+                string errMsg = string.Format("No UEB package was found for the provided package ID: {0}.", packageID);
+                logger.Error("Internal logic error. " + errMsg);
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.Content = new StringContent(errMsg);
+                return response;
+            }
+
             try
             {                
                 string zipUEBPackageFile = Path.Combine(targetPackageDirPath, packageZipFileName);
@@ -94,8 +129,8 @@ namespace UWRL.CIWaterNetServer.Controllers
                     // data from the file stream object
                     while (FileManager.IsFileLocked(new FileInfo(zipUEBPackageFile)))
                     {
-                        // wait a second
-                        Thread.Sleep(TimeSpan.FromSeconds(1));
+                        // wait 3 seconds
+                        Thread.Sleep(TimeSpan.FromSeconds(3));
                     }
                                         
                     if (Directory.Exists(targetPackageRootDirPath))

@@ -9,6 +9,7 @@ using UWRL.CIWaterNetServer.Daymet;
 
 namespace UWRL.CIWaterNetServer.Controllers
 {
+    // TODO: this controller is not used currently
     // this service will be used by client for polling the status of a specific task the client requested
     public class CheckTaskStatusController : ApiController
     {

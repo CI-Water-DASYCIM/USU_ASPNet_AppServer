@@ -6,13 +6,16 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Web.Http;
+using UWRL.CIWaterNetServer.DAL;
 using UWRL.CIWaterNetServer.Helpers;
+using UWRL.CIWaterNetServer.Models;
 
 namespace UWRL.CIWaterNetServer.Controllers
 {
     public class CheckUEBPackageBuildStatusController : ApiController
     {
         private static Logger logger = LogManager.GetCurrentClassLogger();
+        ServiceContext db = new ServiceContext();
 
         public HttpResponseMessage GetStatus(string packageID)
         {
@@ -30,7 +33,10 @@ namespace UWRL.CIWaterNetServer.Controllers
             string packageRequestProcessRootDirPath = Path.Combine(UEB.UEBSettings.WORKING_DIR_PATH, packageID);
             string targetPackageDirPath = Path.Combine(packageRequestProcessRootDirPath, UEB.UEBSettings.PACKAGE_OUTPUT_SUB_DIR_PATH);
             string packageStatusFile = Path.Combine(targetPackageDirPath, UEB.UEBSettings.PACKAGE_BUILD_STATUS_FILE_NAME);
-            if (Directory.Exists(targetPackageDirPath) == false)
+            
+            ServiceLog serviceLog = db.ServiceLogs.FirstOrDefault(sl => sl.JobID == packageID);
+
+            if (serviceLog == null)
             {
                 string errMsg = string.Format("No UEB package build request was found for the provided package ID: {0}.", packageID);
                 logger.Error(errMsg);
@@ -38,35 +44,11 @@ namespace UWRL.CIWaterNetServer.Controllers
                 response.Content = new StringContent(errMsg);
                 return response;
             }
-
-            if (File.Exists(packageStatusFile) == false)
-            {
-                string errMsg = string.Format("Internal error:Package status file ({0}) was not found", packageStatusFile);
-                logger.Error(errMsg);
-                response.StatusCode = HttpStatusCode.NotFound;
-                response.Content = new StringContent(errMsg);
-                return response;
-            }
-
-            string status = string.Empty;
-            using (StreamReader sr = new StreamReader(packageStatusFile))
-            {
-                status = sr.ReadLine();
-            }
-
-            if (status == PackageBuildStatus.Error)
-            {
-                // delete the temp dir                
-                if (Directory.Exists(packageRequestProcessRootDirPath))
-                {
-                    Directory.Delete(packageRequestProcessRootDirPath, true);
-                }
-            }
-
-            string msg = string.Format("Package build status for packageID: ({0}) is {1} .", packageID, status);
+                        
+            string msg = string.Format("Package build status for packageID: ({0}) is {1} .", packageID, serviceLog.RunStatus);
             logger.Info(msg);
             response.StatusCode = HttpStatusCode.OK;
-            response.Content = new StringContent(status);
+            response.Content = new StringContent(serviceLog.RunStatus);
             return response;
         }
     }

@@ -1,5 +1,10 @@
+# This configuration settings where disk drive E is used
+# desined for the app server to run locally (localhost)
+# This configuration settings are not updated on the remote server when this
+# assembley is published to the remote app server as the settings at the app server
+# needs to point to the C drive. Any update to the settings here needs to be manually
+# updated using the same file at the remote app server
 working.dir.path=E:\CIWaterData\Temp
-# testing comment
 test wrong format missing equal character - this line will be skipped
 python.script.dir.path=E:\SoftwareProjects\CIWaterPythonScripts
 daymet.resource.temp.dir.path=E:\CIWaterData\DaymetTimeSeriesData\Logan\tempdatasets

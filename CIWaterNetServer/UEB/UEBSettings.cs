@@ -93,7 +93,6 @@ namespace UWRL.CIWaterNetServer.UEB
 
             // read the config file here and populate all the properties of this class
             string customConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CustomConfig");
-            //string currentPath = Directory.GetCurrentDirectory();
             string uebConfigFile = Path.Combine(customConfigPath, _uebConfigFileName);
 
             if (File.Exists(uebConfigFile) == false)

@@ -3,6 +3,7 @@ using DotSpatial.Projections;
 using DotSpatial.Topology;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Data;
 using System.IO;
 using System.IO.Compression;
@@ -13,6 +14,7 @@ using UWRL.CIWaterNetServer.Models;
 using System.Net.Http.Headers;
 using NLog;
 using UWRL.CIWaterNetServer.Helpers;
+using UWRL.CIWaterNetServer.DAL;
 
 namespace UWRL.CIWaterNetServer.Controllers
 {
@@ -104,9 +106,25 @@ namespace UWRL.CIWaterNetServer.Controllers
         public HttpResponseMessage GetShapeFiles(double watershedOutletLat, double watershedOutletLon)
         {
             HttpResponseMessage response = new HttpResponseMessage();
-                       
+            ServiceContext db = new ServiceContext();
+            ServiceLog serviceLog = null;
             try
-            {
+            {                
+                var service = db.Services.First(s => s.APIName == "EPADelineateController.GetShapeFiles");
+                serviceLog = new ServiceLog
+                                    {
+                                        JobID = Guid.NewGuid().ToString(),
+                                        ServiceID = service.ServiceID,
+                                        CallTime = DateTime.Now,
+                                        StartTime = DateTime.Now,
+                                        RunStatus = RunStatus.Processing
+                                    };
+                
+                db.ServiceLogs.Add(serviceLog);
+                db.SaveChanges();
+                
+                serviceLog = db.ServiceLogs.First(s => s.JobID == serviceLog.JobID);
+
                 Delineate(watershedOutletLat, watershedOutletLon);
 
                 // Ref:http://stackoverflow.com/questions/12145390/how-to-set-downloading-file-name-in-asp-net-mvc-web-api                
@@ -152,11 +170,18 @@ namespace UWRL.CIWaterNetServer.Controllers
                 // clean up the temporary folders for shape files
                 DirectoryInfo dir = new DirectoryInfo(_targetShapeFileGuidDirPath);
                 dir.Delete(true);                
+                serviceLog.RunStatus = RunStatus.Success;
+                serviceLog.FinishTime = DateTime.Now;                
+                db.SaveChanges();
 
             }
             catch (Exception ex)
             {                
                 logger.Fatal(ex.Message);
+                serviceLog.RunStatus = RunStatus.Error;
+                serviceLog.FinishTime = DateTime.Now;                
+                serviceLog.Error = ex.Message;
+                db.SaveChanges();
                 return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message);
             }            
             
@@ -172,9 +197,37 @@ namespace UWRL.CIWaterNetServer.Controllers
             Coordinate wsOutletLocation = new Coordinate();
             wsOutletLocation.X = watershedOutletLon;
             wsOutletLocation.Y = watershedOutletLat;
+            // Date:11/12/2013 EPA service sometime fails to get the
+            // startpoint on the first call. Also, EPA service fails
+            // for a specific outlet location but when you give it another outlet
+            // location very close to the one that failed it seems to work.
+            // Hence we are making up to five attempts to call EPA web service
+            // with outlet location slightly changed from the user selected one
+            int countDelineationAtempts = 0;
+            while (countDelineationAtempts < 5)
+            {
+                try
+                {
+                    _featureSets = GetShapes(wsOutletLocation);
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    countDelineationAtempts++;
+                    // As a bare minimum we should probably log these errors
+                    string delineationAttemptErrMsg = string.Format("Delineation attempt# {0} failed\n {1}.", countDelineationAtempts, ex.Message);
+                    logger.Fatal(delineationAttemptErrMsg);
+                    if (countDelineationAtempts == 5)
+                    {
+                        throw new Exception(ex.Message);
+                    }
 
-            _featureSets = GetShapes(wsOutletLocation);
-
+                    // change the outlet location and then try calling the EPA web service
+                    wsOutletLocation.X += 0.01;
+                    wsOutletLocation.Y += 0.01;
+                }
+            }            
+           
             if (_featureSets == null)
             {
                 string msg = "Invalid outlet location.";
@@ -213,8 +266,7 @@ namespace UWRL.CIWaterNetServer.Controllers
             object[] WshedObj = trigger.GetWsheds(startpt);
 
             if (WshedObj == null)
-            {                               
-
+            {
                 return null;
             }
 
@@ -257,7 +309,6 @@ namespace UWRL.CIWaterNetServer.Controllers
             
             // PK: added this following one line
             fsPoint.Projection = WGS84;
-
             fsPoint.AddFeature(point);
 
             IList<IFeatureSet> EPAShapes = new List<IFeatureSet>();
@@ -275,7 +326,7 @@ namespace UWRL.CIWaterNetServer.Controllers
         /// <returns>Returns the IFeatureSet with attribute table filled</returns>
         private IFeatureSet SetAttribute(object[] attri)
         {
-            logger.Info("Setting attribute table fo shape files.");
+            logger.Info("Setting attribute table for shape files.");
 
             if (attri == null) return null;
 
@@ -307,7 +358,6 @@ namespace UWRL.CIWaterNetServer.Controllers
                     fs.Features[i].DataRow["Length(km)"] = totdist[i];
                 }
             }
-
             else
             {
                 var wshedarea = attri[1] as string;
@@ -330,7 +380,7 @@ namespace UWRL.CIWaterNetServer.Controllers
                     {
                         for (int i = 0; i < count - 1; i++)
                         {
-                            fs.Features[i].DataRow.Delete();
+                            fs.Features[i].DataRow.Delete(); //TODO: date:11/11/2013: Looks like the error is happening here
                         }
                     }
                     catch (Exception ex)

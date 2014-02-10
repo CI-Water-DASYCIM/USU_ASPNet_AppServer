@@ -237,8 +237,7 @@ namespace UWRL.CIWaterNetServer.Controllers
             // clean up the temporary folders for shape files
             DirectoryInfo dir = new DirectoryInfo(inputShapeFilePath);
             dir.Delete(true);
-            logger.Info(string.Format("Lat/lon values in json format were successfully created for shape file:{0}", fileWithSHPExtension));
-            logger.Info(string.Format("Generated JSON lat/lon values:{0}", jsonString));
+            logger.Info(string.Format("Lat/lon values in json format were successfully created for shape file:{0}", fileWithSHPExtension));            
             return response;
         }
     }
