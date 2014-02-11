@@ -217,6 +217,13 @@ namespace UWRL.CIWaterNetServer.Controllers
             response.StatusCode = HttpStatusCode.OK;
             response.Content = new StringContent(jsonResponse);
             
+            //PK:2/11/2014 (Added): start the package build process  - this would start the package build process for this request
+            // if no other requests are in queue. Othewise it will start the build process for the build request that
+            // has been in queue for the longest time (first-in and first-out principle)
+            PackageBuilder uebPkgBuilder = new PackageBuilder();
+            int numberOfJobsStarted = uebPkgBuilder.Run();            
+            logger.Info("Number of queued jobs started:" + numberOfJobsStarted);
+
             return response;
         }
                 
