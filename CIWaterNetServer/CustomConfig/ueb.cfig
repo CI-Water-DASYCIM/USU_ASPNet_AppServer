@@ -1,0 +1,25 @@
+# This configuration settings where disk drive E is used
+# desined for the app server to run locally (localhost)
+# This configuration settings are not updated on the remote server when this
+# assembley is published to the remote app server as the settings at the app server
+# needs to point to the C drive. Any update to the settings here needs to be manually
+# updated using the same file at the remote app server
+working.dir.path=E:\CIWaterData\Temp
+test wrong format missing equal character - this line will be skipped
+python.script.dir.path=E:\SoftwareProjects\CIWaterPythonScripts
+daymet.resource.temp.dir.path=E:\CIWaterData\DaymetTimeSeriesData\Logan\tempdatasets
+daymet.resource.precp.dir.path=E:\CIWaterData\DaymetTimeSeriesData\Logan\precdatasets
+daymet.resource.vp.dir.path=E:\CIWaterData\DaymetTimeSeriesData\Logan\vpdatasets
+daymet.resource.temp.min.file.name.pattern=tmin*.nc
+daymet.resource.temp.max.file.name.pattern=tmax*.nc
+daymet.resource.precp.file.name.pattern=prcp*.nc
+daymet.resource.vp.file.name.pattern=vp*.nc
+nlcd.resource.dir.path=E:\CIWaterData\DataSources\NLCD
+nlcd.resource.file.name=ProjNLCD2006_LC_N36W096_v1.img
+dem.resource.dir.path=E:\CIWaterData\DataSources\DEM
+dem.resource.file.name=gsl100.tif
+watershed.constant.wind.speed=2.0
+ueb.executable.dir.path=E:\CIWaterData\UEB_Executables
+ueb.execution.control.file.name=overallcontrol.dat
+model.output.folder.name=outputs
+
